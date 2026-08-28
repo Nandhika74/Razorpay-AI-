@@ -15,7 +15,7 @@ This project implements an **Autonomous Payment Recovery Agent** that diagnoses 
 
 ---
 
-## 🏗️ Architecture & 4-Stage Decision Pipeline
+## 🏗️ Architecture & 4-Stage Decision Pipel
 ┌────────────────────────────────────┐
                  │   Razorpay Webhook: payment.failed │
                  └─────────────────┬──────────────────┘
@@ -170,6 +170,4 @@ Code
 └── vite.config.ts
 📄 License
 This project is licensed under the MIT License.
-code
-Code
-lightbulb_tips
+
