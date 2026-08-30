@@ -4,13 +4,15 @@ import { RazorpayConfigState } from '../types';
 
 interface HeaderProps {
   config: RazorpayConfigState | null;
-  selectedSplit: 'held_out' | 'design' | 'all';
-  onSelectSplit: (split: 'held_out' | 'design' | 'all') => void;
+  selectedSplit: 'held_out' | 'design' | 'live_demo' | 'all';
+  onSelectSplit: (split: 'held_out' | 'design' | 'live_demo' | 'all') => void;
   onOpenSandboxLab: () => void;
   onOpenHeldOutLedger: () => void;
   onOpenDocs: () => void;
   onResetData: () => void;
   isResetting: boolean;
+  totalCaseCount: number;
+  liveDemoCount: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,6 +24,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenDocs,
   onResetData,
   isResetting,
+  totalCaseCount,
+  liveDemoCount,
 }) => {
   return (
     <header id="app-header" className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200">
@@ -58,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span className="flex items-center space-x-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>Held-Out Split (Eval)</span>
+                <span>Held-Out (Eval)</span>
               </span>
             </button>
             <button
@@ -70,8 +74,24 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-500 hover:text-slate-800 font-medium'
               }`}
             >
-              <span>Design Split (Tuning)</span>
+              <span>Design (Tuning)</span>
             </button>
+            {liveDemoCount > 0 && (
+              <button
+                id="split-btn-live-demo"
+                onClick={() => onSelectSplit('live_demo')}
+                className={`px-3 py-1.5 rounded-lg text-xs transition-all ${
+                  selectedSplit === 'live_demo'
+                    ? 'bg-white text-indigo-600 shadow-sm font-bold'
+                    : 'text-slate-500 hover:text-slate-800 font-medium'
+                }`}
+              >
+                <span className="flex items-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                  <span>Live Demo ({liveDemoCount})</span>
+                </span>
+              </button>
+            )}
             <button
               id="split-btn-all"
               onClick={() => onSelectSplit('all')}
@@ -81,7 +101,7 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'text-slate-500 hover:text-slate-800 font-medium'
               }`}
             >
-              <span>All Cases (60)</span>
+              <span>All Cases ({totalCaseCount})</span>
             </button>
           </div>
 

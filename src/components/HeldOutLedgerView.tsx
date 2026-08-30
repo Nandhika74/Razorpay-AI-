@@ -8,6 +8,7 @@ interface HeldOutLedgerViewProps {
   metrics: {
     heldOut: BatchEvaluationMetrics;
     design: BatchEvaluationMetrics;
+    liveDemo?: BatchEvaluationMetrics;
     all: BatchEvaluationMetrics;
   };
   cases: RecoveryCase[];

@@ -15,6 +15,7 @@ export default function App() {
   const [metrics, setMetrics] = useState<{
     heldOut: BatchEvaluationMetrics;
     design: BatchEvaluationMetrics;
+    liveDemo: BatchEvaluationMetrics;
     all: BatchEvaluationMetrics;
   }>({
     heldOut: {
@@ -45,6 +46,20 @@ export default function App() {
       avgHoursToRecovery: 0,
       netRevenueSavedINR: 0,
     },
+    liveDemo: {
+      split: 'live_demo',
+      totalCases: 0,
+      totalAtRiskINR: 0,
+      totalRecoveredINR: 0,
+      recoveryRatePct: 0,
+      hardDeclinesCompliantlyStopped: 0,
+      networkCeilingsRespected: 0,
+      complianceViolationsCount: 0,
+      preventedFinesINR: 0,
+      avgAttemptsPerRecovery: 0,
+      avgHoursToRecovery: 0,
+      netRevenueSavedINR: 0,
+    },
     all: {
       split: 'all',
       totalCases: 0,
@@ -61,7 +76,7 @@ export default function App() {
     },
   });
 
-  const [selectedSplit, setSelectedSplit] = useState<'held_out' | 'design' | 'all'>('held_out');
+  const [selectedSplit, setSelectedSplit] = useState<'held_out' | 'design' | 'live_demo' | 'all'>('held_out');
   const [selectedCase, setSelectedCase] = useState<RecoveryCase | null>(null);
 
   const [isSandboxLabOpen, setIsSandboxLabOpen] = useState(false);
@@ -107,6 +122,9 @@ export default function App() {
         body: JSON.stringify({ actionType, customNote }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Action rejected by scheme compliance rules');
+      }
       if (data.case) {
         setCases((prev) => prev.map((c) => (c.id === caseId ? data.case : c)));
         setSelectedCase(data.case);
@@ -114,8 +132,9 @@ export default function App() {
       if (data.metrics) {
         setMetrics(data.metrics);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error executing action:', err);
+      throw err;
     } finally {
       setIsActionLoading(false);
     }
@@ -156,6 +175,8 @@ export default function App() {
       if (data.case) {
         setCases((prev) => [data.case, ...prev]);
         setSelectedCase(data.case);
+        // Switch to live_demo tab so the user sees their live action immediately!
+        setSelectedSplit('live_demo');
       }
       if (data.metrics) {
         setMetrics(data.metrics);
@@ -189,7 +210,11 @@ export default function App() {
     ? metrics.heldOut
     : selectedSplit === 'design'
     ? metrics.design
+    : selectedSplit === 'live_demo'
+    ? metrics.liveDemo
     : metrics.all;
+
+  const liveDemoCount = cases.filter((c) => c.batchSplit === 'live_demo').length;
 
   return (
     <div id="root-app-container" className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
@@ -203,6 +228,8 @@ export default function App() {
         onOpenDocs={() => setIsDocsOpen(true)}
         onResetData={handleResetData}
         isResetting={isResetting}
+        totalCaseCount={cases.length}
+        liveDemoCount={liveDemoCount}
       />
 
       {/* Main Content Dashboard */}

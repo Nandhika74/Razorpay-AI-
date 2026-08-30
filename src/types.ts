@@ -114,7 +114,7 @@ export interface AIOutreachDraft {
 
 export interface RecoveryCase {
   id: string;
-  batchSplit: 'design' | 'held_out';
+  batchSplit: 'design' | 'held_out' | 'live_demo';
   customer: CustomerProfile;
   failureEvent: {
     paymentId: string;
@@ -132,12 +132,13 @@ export interface RecoveryCase {
   recoveryMethod?: string;
   recoveredAt?: string;
   recoveredAmountINR?: number;
+  hoursToRecovery?: number;
   outreachDraft?: AIOutreachDraft;
   auditTrail: AuditEntry[];
 }
 
 export interface BatchEvaluationMetrics {
-  split: 'design' | 'held_out' | 'all';
+  split: 'design' | 'held_out' | 'live_demo' | 'all';
   totalCases: number;
   totalAtRiskINR: number;
   totalRecoveredINR: number;

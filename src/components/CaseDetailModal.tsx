@@ -43,20 +43,29 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
   const [outreachLanguage, setOutreachLanguage] = useState<'english' | 'hinglish'>('english');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const isHardDecline = caseItem.classification.zone === 'NEVER_RETRY';
 
   const handleAction = async (actionType: string, note?: string) => {
-    await onExecuteAction(caseItem.id, actionType, note);
-    if (actionType === 'SMART_RETRY' || actionType === 'SIMULATE_CUSTOMER_PAY') {
-      confetti({
-        particleCount: 50,
-        spread: 60,
-        origin: { y: 0.7 },
-      });
+    setActionError(null);
+    try {
+      await onExecuteAction(caseItem.id, actionType, note);
+      if (actionType === 'SMART_RETRY' || actionType === 'SIMULATE_CUSTOMER_PAY') {
+        confetti({
+          particleCount: 50,
+          spread: 60,
+          origin: { y: 0.7 },
+        });
+      }
+    } catch (err: any) {
+      setActionError(err.message || 'Action blocked by compliance rules');
     }
   };
 
   const handleGenerateAI = async () => {
     setIsGeneratingAI(true);
+    setActionError(null);
     try {
       await onGenerateAIOutreach(caseItem.id, outreachChannel, outreachLanguage);
     } finally {
@@ -148,6 +157,69 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
 
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto flex-1 bg-[#f8fafc] space-y-5">
+          {/* Action Error Notification */}
+          {actionError && (
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-950 flex items-start space-x-3 shadow-sm animate-shake">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <span className="font-bold text-xs uppercase tracking-wider text-rose-900 block mb-0.5">
+                  Scheme Compliance Circuit Breaker Triggered
+                </span>
+                <p className="text-xs text-rose-800 font-medium leading-relaxed">{actionError}</p>
+              </div>
+              <button onClick={() => setActionError(null)} className="text-rose-400 hover:text-rose-700 text-xs font-bold">
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {/* Hard Decline Permanent Circuit Breaker Banner */}
+          {isHardDecline && (
+            <div className="p-4 rounded-2xl bg-rose-900 text-white flex items-start space-x-3.5 shadow-lg border border-rose-950">
+              <div className="w-6 h-6 rounded-xl bg-rose-600 flex items-center justify-center font-black text-xs shrink-0 mt-0.5">
+                🛑
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-xs uppercase tracking-widest text-rose-200">
+                    Mandatory Scheme Hard Stop Enforced (MAC 21 / Stolen Card)
+                  </span>
+                  <span className="bg-rose-800 text-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                    0 Retries Allowed
+                  </span>
+                </div>
+                <p className="text-xs text-rose-100 font-medium leading-relaxed">
+                  This payment instrument is permanently deactivated ({caseItem.failureEvent.decline.reason}). All automated retries, customer 1-click debit links, and recovery dunning are strictly blocked to protect your MID from Visa/Mastercard VMMP fines ($5,000–$75,000/mo).
+                </p>
+                <p className="text-[11px] text-rose-300 font-semibold">
+                  Compliant Path: Route case to Customer Success to guide customer through onboarding a brand new payment method.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Settled / Recovered Banner */}
+          {caseItem.status === 'RECOVERED' && (
+            <div className="p-4 rounded-2xl bg-emerald-900 text-white flex items-start space-x-3.5 shadow-lg border border-emerald-950">
+              <div className="w-6 h-6 rounded-xl bg-emerald-600 flex items-center justify-center font-black text-xs shrink-0 mt-0.5">
+                ✓
+              </div>
+              <div className="space-y-1 flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs uppercase tracking-widest text-emerald-200">
+                    Terminal State: Payment Settled & Revenue Captured
+                  </span>
+                  <span className="bg-emerald-800 text-emerald-200 text-[10px] font-mono font-bold px-2 py-0.5 rounded-md">
+                    ₹{caseItem.customer.amountINR.toLocaleString('en-IN')} Secured
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-100 font-medium leading-relaxed">
+                  Method: {caseItem.recoveryMethod || 'Direct Authorization'}. Invoice is fully resolved. All dunning and retry actions are locked to prevent double-billing and customer friction.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* TAB 1: DECISION TREE & COMPLIANCE */}
           {activeTab === 'decision_tree' && (
             <div className="space-y-5">
@@ -250,11 +322,15 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">
                     {caseItem.compliance.network} 30D Limit
                   </span>
-                  <div className={`text-3xl font-black my-1 ${caseItem.compliance.isCeilingReached ? 'text-amber-600' : 'text-slate-800'}`}>
+                  <div className={`text-3xl font-black my-1 ${isHardDecline ? 'text-rose-600' : caseItem.compliance.isCeilingReached ? 'text-amber-600' : 'text-slate-800'}`}>
                     {caseItem.compliance.attemptCount} / {caseItem.compliance.maxAllowedAttempts}
                   </div>
                   <p className="text-[11px] text-slate-400 font-medium">
-                    {caseItem.compliance.isCeilingReached ? 'Ceiling reached — Escalated to CS' : `${caseItem.compliance.attemptsRemaining} retry attempts remaining`}
+                    {isHardDecline 
+                      ? 'Hard Stop (0 retries permitted)'
+                      : caseItem.compliance.isCeilingReached 
+                      ? 'Ceiling reached — Escalated to CS' 
+                      : `${caseItem.compliance.attemptsRemaining} retry attempts remaining`}
                   </p>
                 </div>
               </div>
@@ -275,24 +351,28 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
                   <button
                     id="btn-action-smart-retry"
                     onClick={() => handleAction('SMART_RETRY')}
-                    disabled={isLoadingAction || caseItem.compliance.isCeilingReached || caseItem.classification.zone === 'NEVER_RETRY' || caseItem.status === 'RECOVERED'}
-                    className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-900 font-bold text-xs transition-colors flex flex-col items-center justify-center space-y-1.5 disabled:opacity-50 disabled:cursor-not-allowed text-center shadow-2xs"
+                    disabled={isLoadingAction || caseItem.compliance.isCeilingReached || isHardDecline || caseItem.status === 'RECOVERED'}
+                    className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-900 font-bold text-xs transition-colors flex flex-col items-center justify-center space-y-1.5 disabled:opacity-40 disabled:cursor-not-allowed text-center shadow-2xs"
                   >
                     <Zap className="w-5 h-5 text-indigo-600" />
                     <span>Execute Smart Retry</span>
-                    <span className="text-[10px] text-indigo-600 font-normal">Silent gateway / scheme re-auth</span>
+                    <span className="text-[10px] text-indigo-600 font-normal">
+                      {isHardDecline ? '🛑 Blocked (Hard Decline)' : 'Silent gateway / scheme re-auth'}
+                    </span>
                   </button>
 
                   {/* Action 2: Simulate Customer 1-Click Link Pay */}
                   <button
                     id="btn-action-simulate-customer-pay"
                     onClick={() => handleAction('SIMULATE_CUSTOMER_PAY')}
-                    disabled={isLoadingAction || caseItem.status === 'RECOVERED'}
-                    className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-900 font-bold text-xs transition-colors flex flex-col items-center justify-center space-y-1.5 disabled:opacity-50 disabled:cursor-not-allowed text-center shadow-2xs"
+                    disabled={isLoadingAction || isHardDecline || caseItem.status === 'RECOVERED'}
+                    className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-900 font-bold text-xs transition-colors flex flex-col items-center justify-center space-y-1.5 disabled:opacity-40 disabled:cursor-not-allowed text-center shadow-2xs"
                   >
                     <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                     <span>Simulate 1-Click Pay</span>
-                    <span className="text-[10px] text-emerald-700 font-normal">Customer authorizes via WhatsApp/SMS</span>
+                    <span className="text-[10px] text-emerald-700 font-normal">
+                      {isHardDecline ? '🛑 Blocked (Invalid Instrument)' : 'Customer authorizes via WhatsApp/SMS'}
+                    </span>
                   </button>
 
                   {/* Action 3: Human CS Escalation */}
@@ -300,11 +380,17 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
                     id="btn-action-escalate-human"
                     onClick={() => handleAction('ESCALATE_HUMAN')}
                     disabled={isLoadingAction || caseItem.status === 'HANDED_OFF_CEILING' || caseItem.status === 'RECOVERED'}
-                    className="p-4 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100 text-amber-900 font-bold text-xs transition-colors flex flex-col items-center justify-center space-y-1.5 disabled:opacity-50 disabled:cursor-not-allowed text-center shadow-2xs"
+                    className={`p-4 rounded-xl border font-bold text-xs transition-colors flex flex-col items-center justify-center space-y-1.5 disabled:opacity-50 disabled:cursor-not-allowed text-center shadow-2xs ${
+                      isHardDecline
+                        ? 'border-indigo-500 bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200'
+                        : 'border-amber-200 bg-amber-50/70 hover:bg-amber-100 text-amber-900'
+                    }`}
                   >
-                    <UserCheck className="w-5 h-5 text-amber-700" />
-                    <span>Escalate to CS Rep</span>
-                    <span className="text-[10px] text-amber-800 font-normal">Clean handoff without retry spam</span>
+                    <UserCheck className={`w-5 h-5 ${isHardDecline ? 'text-white' : 'text-amber-700'}`} />
+                    <span>{isHardDecline ? 'Escalate for Card Swap' : 'Escalate to CS Rep'}</span>
+                    <span className={`text-[10px] font-normal ${isHardDecline ? 'text-indigo-100' : 'text-amber-800'}`}>
+                      {isHardDecline ? 'Compliant handoff for new mandate' : 'Clean handoff without retry spam'}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -319,7 +405,9 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
                   <div>
                     <h3 className="font-bold text-slate-800 text-sm">Gemini 3.7 Contextual Outreach Synthesizer</h3>
                     <p className="text-xs text-slate-400 font-medium mt-0.5">
-                      Creates empathetic, personalized recovery notifications matching customer tenure and error context.
+                      {isHardDecline 
+                        ? 'Generates card-replacement onboarding notifications informing customer of compromised payment method.'
+                        : 'Creates empathetic, personalized recovery notifications matching customer tenure and error context.'}
                     </p>
                   </div>
                   <button
@@ -416,18 +504,27 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
 
                   <div className="p-4 rounded-2xl bg-slate-900 text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed border border-slate-800 shadow-inner">
                     {caseItem.outreachDraft?.messageBody ||
-                      `Hi ${caseItem.customer.name},\n\nYour recurring subscription payment for ${caseItem.customer.planName} (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) couldn't be processed due to a temporary bank authorization notice (${caseItem.failureEvent.decline.reason}).\n\nTo ensure your service remains uninterrupted, please refresh your payment method via this secure 1-click link:\n\n👉 https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}\n\nNeed assistance? Reply to this message anytime.`}
+                      (isHardDecline
+                        ? `Hi ${caseItem.customer.name},\n\nWe noticed your recurring subscription payment for ${caseItem.customer.planName} (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) was halted because the payment card on file has been reported inactive/cancelled by your issuing bank.\n\nTo keep your access uninterrupted, please set up a replacement payment method here:\n\n👉 https://rzp.io/l/replace_mandate_${caseItem.id.toLowerCase()}\n\nOur support team is also on standby to assist you directly.`
+                        : `Hi ${caseItem.customer.name},\n\nYour recurring subscription payment for ${caseItem.customer.planName} (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) couldn't be processed due to a temporary bank authorization notice (${caseItem.failureEvent.decline.reason}).\n\nTo ensure your service remains uninterrupted, please refresh your payment method via this secure 1-click link:\n\n👉 https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}\n\nNeed assistance? Reply to this message anytime.`)}
                   </div>
 
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span>Deep-Link: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 font-mono">https://rzp.io/l/mandate_ref_{caseItem.id.toLowerCase()}</code></span>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-slate-400 gap-2">
+                    <span>
+                      Deep-Link:{' '}
+                      <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 font-mono">
+                        {isHardDecline 
+                          ? `https://rzp.io/l/replace_mandate_${caseItem.id.toLowerCase()}`
+                          : `https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}`}
+                      </code>
+                    </span>
                     <button
                       onClick={() => handleAction('DISPATCH_COMMUNICATION', `Sent via ${outreachChannel} in ${outreachLanguage}`)}
-                      disabled={isLoadingAction || caseItem.status === 'RECOVERED'}
-                      className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-200 transition-colors"
+                      disabled={isLoadingAction || isHardDecline || caseItem.status === 'RECOVERED'}
+                      className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Send className="w-3.5 h-3.5 mr-1.5" />
-                      <span>Dispatch to Customer</span>
+                      <span>{isHardDecline ? '🛑 Direct Dispatch Blocked' : 'Dispatch to Customer'}</span>
                     </button>
                   </div>
                 </div>

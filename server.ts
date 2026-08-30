@@ -2,7 +2,6 @@ import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import crypto from 'crypto';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import Razorpay from 'razorpay';
@@ -15,9 +14,6 @@ import {
   runStage4ExecutionCompliance,
 } from './src/engine/recoveryPipeline';
 import { RecoveryCase, RazorpayDeclineInfo, ActionChannel } from './src/types';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // In-memory case repository initialized with statistically calibrated data
 let casesStore: RecoveryCase[] = generateInitialCases();
@@ -127,7 +123,7 @@ async function startServer() {
 
   // 3. Get all recovery cases
   app.get('/api/cases', (req: Request, res: Response) => {
-    const split = req.query.split as 'design' | 'held_out' | 'all' | undefined;
+    const split = req.query.split as 'design' | 'held_out' | 'live_demo' | 'all' | undefined;
     let list = casesStore;
     if (split && split !== 'all') {
       list = casesStore.filter((c) => c.batchSplit === split);
@@ -137,6 +133,7 @@ async function startServer() {
       metrics: {
         heldOut: evaluateBatch(casesStore, 'held_out'),
         design: evaluateBatch(casesStore, 'design'),
+        liveDemo: evaluateBatch(casesStore, 'live_demo'),
         all: evaluateBatch(casesStore, 'all'),
       },
     });
@@ -161,6 +158,28 @@ async function startServer() {
       return;
     }
 
+    // Terminal State Protection: Once a case is RECOVERED, payment is settled.
+    // No further dunning, retry, or escalation actions can be taken.
+    if (caseItem.status === 'RECOVERED') {
+      res.status(400).json({
+        error: `Case is already RECOVERED and settled (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}). No further recovery actions can be executed on a closed, paid invoice.`,
+      });
+      return;
+    }
+
+    // CRITICAL COMPLIANCE CIRCUIT BREAKER:
+    // Hard declines (stolen/closed/MAC 21) are permanently invalid payment instruments.
+    // Automated retries, customer 1-click links, and recovery dunning are strictly blocked under Card Scheme rules.
+    if (
+      caseItem.classification.zone === 'NEVER_RETRY' &&
+      ['SMART_RETRY', 'DISPATCH_COMMUNICATION', 'SIMULATE_CUSTOMER_PAY'].includes(actionType)
+    ) {
+      res.status(400).json({
+        error: `Compliance Block: Hard decline enforced (${caseItem.failureEvent.decline.reason || caseItem.compliance.macStopCodeTriggered}). Card is stolen, cancelled, or revoked. No recovery action permitted on this instrument. Must escalate to Human CS for payment method swap.`,
+      });
+      return;
+    }
+
     const nowIso = new Date().toISOString();
 
     if (actionType === 'SMART_RETRY') {
@@ -168,13 +187,6 @@ async function startServer() {
       if (caseItem.compliance.attemptCount >= caseItem.compliance.maxAllowedAttempts) {
         res.status(400).json({
           error: `Compliance Block: Maximum allowed attempts (${caseItem.compliance.maxAllowedAttempts}) reached for ${caseItem.compliance.network}. Automated retry blocked.`,
-        });
-        return;
-      }
-
-      if (caseItem.classification.zone === 'NEVER_RETRY') {
-        res.status(400).json({
-          error: `Compliance Block: Hard decline case cannot be retried. Stop code enforced.`,
         });
         return;
       }
@@ -265,6 +277,7 @@ async function startServer() {
       metrics: {
         heldOut: evaluateBatch(casesStore, 'held_out'),
         design: evaluateBatch(casesStore, 'design'),
+        liveDemo: evaluateBatch(casesStore, 'live_demo'),
         all: evaluateBatch(casesStore, 'all'),
       },
     });
@@ -334,20 +347,20 @@ async function startServer() {
     const diagnosis = runStage1Diagnosis(customer, declineInfo, 1);
     const classification = runStage2Classification(declineInfo, diagnosis);
     const trendScore = runStage3TrendScore(customer, diagnosis, classification, 14);
-    const compliance = runStage4ExecutionCompliance(customer, classification, 1);
+    const compliance = runStage4ExecutionCompliance(customer, classification, classification.zone === 'NEVER_RETRY' ? 0 : 1);
 
     const initialStatus = classification.zone === 'NEVER_RETRY' ? 'EXCLUDED_HARD_DECLINE' : 'ACTIVE_DUNNING';
 
     const newCase: RecoveryCase = {
       id: caseId,
-      batchSplit: 'held_out',
+      batchSplit: 'live_demo',
       customer,
       failureEvent: {
         paymentId: `pay_live_${Date.now()}`,
         subscriptionId: `sub_live_${Date.now()}`,
         timestamp: nowIso,
         decline: declineInfo,
-        attemptNumber: 1,
+        attemptNumber: classification.zone === 'NEVER_RETRY' ? 0 : 1,
       },
       currentStage: 4,
       diagnosis,
@@ -409,6 +422,7 @@ async function startServer() {
       metrics: {
         heldOut: evaluateBatch(casesStore, 'held_out'),
         design: evaluateBatch(casesStore, 'design'),
+        liveDemo: evaluateBatch(casesStore, 'live_demo'),
         all: evaluateBatch(casesStore, 'all'),
       },
     });
@@ -491,20 +505,20 @@ async function startServer() {
       const diagnosis = runStage1Diagnosis(customer, declineInfo, 1);
       const classification = runStage2Classification(declineInfo, diagnosis);
       const trendScore = runStage3TrendScore(customer, diagnosis, classification, 14);
-      const compliance = runStage4ExecutionCompliance(customer, classification, 1);
+      const compliance = runStage4ExecutionCompliance(customer, classification, classification.zone === 'NEVER_RETRY' ? 0 : 1);
 
       const initialStatus = classification.zone === 'NEVER_RETRY' ? 'EXCLUDED_HARD_DECLINE' : 'ACTIVE_DUNNING';
 
       const newCase: RecoveryCase = {
         id: caseId,
-        batchSplit: 'held_out',
+        batchSplit: 'live_demo',
         customer,
         failureEvent: {
           paymentId: paymentEntity.id || `pay_${Date.now()}`,
           subscriptionId: subscriptionEntity?.id || paymentEntity.invoice_id || `sub_${Date.now()}`,
           timestamp: nowIso,
           decline: declineInfo,
-          attemptNumber: 1,
+          attemptNumber: classification.zone === 'NEVER_RETRY' ? 0 : 1,
         },
         currentStage: 4,
         diagnosis,
@@ -596,12 +610,12 @@ Language: ${language || 'english'} (If Hinglish, write natural, professional con
 Keep it concise, friendly, compliant with RBI guidelines, and include the 1-click update link: https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}`;
 
         const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.7-flash',
           contents: prompt,
         });
 
         generatedBody = response.text || '';
-        personalizedReasoning = `Synthesized via Google Gemini 2.5 Flash using ${caseItem.customer.tenureMonths}-month customer baseline context and ${caseItem.failureEvent.decline.reason} error taxonomy.`;
+        personalizedReasoning = `Synthesized via Google Gemini 3.7 Flash using ${caseItem.customer.tenureMonths}-month customer baseline context and ${caseItem.failureEvent.decline.reason} error taxonomy.`;
       } catch (err: any) {
         console.warn('Gemini generation failed, using intelligent template:', err);
       }
@@ -638,6 +652,7 @@ Keep it concise, friendly, compliant with RBI guidelines, and include the 1-clic
       metrics: {
         heldOut: evaluateBatch(casesStore, 'held_out'),
         design: evaluateBatch(casesStore, 'design'),
+        liveDemo: evaluateBatch(casesStore, 'live_demo'),
         all: evaluateBatch(casesStore, 'all'),
       },
     });
