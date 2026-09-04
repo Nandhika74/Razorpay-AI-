@@ -107,12 +107,17 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({ metrics, selec
               </span>
             </div>
             <div className="mt-2.5 text-xs text-slate-500 font-medium">
-              <span>Visa 15 / Mastercard 10 rolling-30D hard ceilings.</span>
+              <span>Visa 15 / Mastercard 10 rolling-30D ceilings*</span>
             </div>
           </div>
-          <p className="text-[11px] text-slate-400 mt-4 leading-relaxed font-medium">
-            {metrics.networkCeilingsRespected} cases safely escalated to CS on limit.
-          </p>
+          <div className="mt-3 space-y-1">
+            <p className="text-[11px] text-slate-500 font-medium">
+              {metrics.networkCeilingsRespected} cases safely escalated to CS on limit.
+            </p>
+            <p className="text-[10px] text-slate-400 leading-tight italic">
+              *Configured per published network merchant guidelines; may vary by MCC & region.
+            </p>
+          </div>
         </div>
 
         {/* Metric 4: Fines & Penalties Prevented */}
@@ -128,12 +133,15 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({ metrics, selec
               <span className="text-lg mr-1 font-semibold text-slate-400">₹</span>
               {metrics.preventedFinesINR.toLocaleString('en-IN')}
             </div>
-            <div className="mt-2.5 text-xs text-slate-700 font-semibold">
-              <span>VMMP & Excessive Retry fines avoided</span>
+            <div className="mt-2 text-xs font-medium text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100 space-y-0.5">
+              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Calculation Breakdown:</div>
+              <div className="font-mono text-[11px] text-slate-700">
+                ({metrics.hardDeclinesCompliantlyStopped} Hard Stops × ₹25k) + ({metrics.networkCeilingsRespected} Ceiling Halts × ₹15k)
+              </div>
             </div>
           </div>
-          <p className="text-[11px] text-slate-400 mt-4 leading-relaxed font-medium">
-            Protects merchant MID from Visa VMMP monitoring ($5k–$75k/mo).
+          <p className="text-[11px] text-slate-400 mt-3 leading-relaxed font-medium">
+            Protects merchant MID from VMMP & excessive retry monitoring fines ($5k–$75k/mo).
           </p>
         </div>
       </div>

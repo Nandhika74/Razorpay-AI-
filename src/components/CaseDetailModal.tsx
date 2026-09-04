@@ -239,11 +239,22 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
                       <span className="text-slate-400 font-medium">Tenure & History:</span>
                       <span className="font-bold text-slate-800">{caseItem.customer.tenureMonths} mos ({caseItem.customer.successfulHistoricalPayments}/{caseItem.customer.totalHistoricalPayments} paid)</span>
                     </div>
-                    <div className="flex justify-between py-1.5 border-b border-slate-100">
-                      <span className="text-slate-400 font-medium">Surprise Index:</span>
-                      <span className={`font-bold ${caseItem.diagnosis.isAnomalousBlip ? 'text-amber-700' : 'text-slate-700'}`}>
-                        {Math.round(caseItem.diagnosis.surpriseScore * 100)}% {caseItem.diagnosis.isAnomalousBlip ? '(Isolated Blip)' : '(Chronic Friction)'}
-                      </span>
+                    <div className="py-1.5 border-b border-slate-100">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400 font-medium">Surprise Index:</span>
+                        <span className={`font-bold ${caseItem.diagnosis.isAnomalousBlip ? 'text-amber-700' : 'text-slate-700'}`}>
+                          {Math.round(caseItem.diagnosis.surpriseScore * 100)}% {caseItem.diagnosis.isAnomalousBlip ? '(Isolated Blip)' : '(Chronic Friction)'}
+                        </span>
+                      </div>
+                      <div className="mt-1 font-mono text-[10px] text-slate-500 bg-slate-50 p-1.5 rounded border border-slate-100">
+                        {caseItem.classification.isHardDecline ? (
+                          <span className="text-rose-600 font-semibold">0.0 (Hard Decline Override)</span>
+                        ) : (
+                          <span>
+                            {caseItem.customer.historicalSuccessRate.toFixed(2)} × min({caseItem.customer.tenureMonths}/12, 1) × (1 - {Math.max(0, caseItem.customer.totalHistoricalPayments - caseItem.customer.successfulHistoricalPayments)}/10) = <strong className="text-slate-700">{caseItem.diagnosis.surpriseScore.toFixed(2)}</strong>
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex justify-between py-1.5">
                       <span className="text-slate-400 font-medium">Card & Mandate:</span>
@@ -312,15 +323,18 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
                   <div className="text-3xl font-black text-indigo-600 my-1">
                     {caseItem.trendScore.recoveryPriorityScore}/100
                   </div>
-                  <p className="text-[11px] text-slate-400 font-medium">
-                    ₹{caseItem.customer.amountINR.toLocaleString('en-IN')} × {caseItem.trendScore.daysRemainingInDunning}d left
+                  <p className="text-[11px] text-slate-600 font-medium">
+                    Value ({Math.min(60, Math.round((caseItem.customer.amountINR / 8000) * 60))}pts) + Urgency ({caseItem.classification.isHardDecline ? 0 : Math.min(40, Math.round((14 - Math.max(1, caseItem.trendScore.daysRemainingInDunning)) * (40 / 13)))}pts)
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    ₹{caseItem.customer.amountINR.toLocaleString('en-IN')} at risk • {caseItem.trendScore.daysRemainingInDunning}d left of 14d
                   </p>
                 </div>
 
                 {/* Network Compliance Meter */}
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 text-center shadow-sm">
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                    {caseItem.compliance.network} 30D Limit
+                    {caseItem.compliance.network} 30D Limit*
                   </span>
                   <div className={`text-3xl font-black my-1 ${isHardDecline ? 'text-rose-600' : caseItem.compliance.isCeilingReached ? 'text-amber-600' : 'text-slate-800'}`}>
                     {caseItem.compliance.attemptCount} / {caseItem.compliance.maxAllowedAttempts}
@@ -331,6 +345,9 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
                       : caseItem.compliance.isCeilingReached 
                       ? 'Ceiling reached — Escalated to CS' 
                       : `${caseItem.compliance.attemptsRemaining} retry attempts remaining`}
+                  </p>
+                  <p className="text-[9.5px] text-slate-400 italic mt-1 leading-tight">
+                    *Per published network merchant guidelines
                   </p>
                 </div>
               </div>

@@ -58,17 +58,34 @@ export const ArchitectureDocsModal: React.FC<ArchitectureDocsModalProps> = ({
               <span>2. The 4-Stage Pipeline Engine</span>
             </h3>
             <div className="space-y-2.5">
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                <strong className="text-slate-800 font-bold">Stage 1 — Context-Adjusted Diagnosis:</strong> Ingests raw Razorpay error schema (<code>code</code>, <code>source</code>, <code>step</code>, <code>reason</code>) + customer's personal payment history to compute the <em>Surprise Index</em>.
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <div>
+                  <strong className="text-slate-800 font-bold">Stage 1 — Context-Adjusted Diagnosis:</strong> Ingests raw Razorpay error schema (<code>code</code>, <code>source</code>, <code>step</code>, <code>reason</code>) + customer payment history to compute the <em>Surprise Index</em>.
+                </div>
+                <div className="font-mono text-[11px] text-indigo-700 bg-white p-2 rounded-lg border border-slate-200">
+                  Surprise = Historical Success Rate × min(Tenure/12, 1) × (1 - Failures/10)
+                  <span className="block text-[9.5px] text-slate-400 font-sans mt-0.5">*Hard decline override: 0.0. Anomaly blip threshold: ≥ 0.70.</span>
+                </div>
               </div>
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                <strong className="text-slate-800 font-bold">Stage 2 — Zone Classification:</strong> Triage into 4 zones (<code>Never Retry</code>, <code>Retry Soon</code>, <code>Retry Later</code>, <code>Needs Action</code>). Hard declines (stolen/closed/MAC 21) exit here permanently.
+                <strong className="text-slate-800 font-bold">Stage 2 — Zone Classification:</strong> Triage into 4 zones (<code>Never Retry</code>, <code>Retry Soon</code>, <code>Retry Later</code>, <code>Needs Action</code>). Hard declines (stolen/closed/MAC 21) exit here permanently with zero retries.
               </div>
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                <strong className="text-slate-800 font-bold">Stage 3 — Dual-Score Trend Assessment:</strong> Computes two distinct orthogonal scores: <strong>Recovery Likelihood %</strong> and <strong>Recovery Priority Rank</strong> (value-at-risk × days remaining before dunning auto-cancels).
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <div>
+                  <strong className="text-slate-800 font-bold">Stage 3 — Dual-Score Trend Assessment:</strong> Computes two distinct orthogonal metrics: <strong>Recovery Likelihood %</strong> (empirical statistical probability) and <strong>Recovery Priority Rank</strong> (additive 0–100 queue priority).
+                </div>
+                <div className="font-mono text-[11px] text-slate-700 bg-white p-2 rounded-lg border border-slate-200">
+                  Priority Rank = min(100, Normalized Value [0–60 pts] + Dunning Urgency [0–40 pts])
+                  <span className="block text-[9.5px] text-slate-400 font-sans mt-0.5">*Where Value = min(60, [Amount/8000]×60) and Urgency = min(40, [14 - DaysLeft] × [40/13]). Zone NEVER_RETRY = 0.</span>
+                </div>
               </div>
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                <strong className="text-slate-800 font-bold">Stage 4 — Bounded Execution & Network Compliance:</strong> Enforces Visa 15 / Mastercard 10 rolling-30D retry ceilings and MAC 21 stop-codes. On ceiling hit, cleanly escalates to CS rather than silently failing or violating scheme rules.
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div>
+                  <strong className="text-slate-800 font-bold">Stage 4 — Bounded Execution & Network Compliance:</strong> Enforces Visa 15 / Mastercard 10 rolling-30D retry ceilings* and MAC 21 stop-codes. On ceiling hit, cleanly escalates to CS rather than burning attempts or violating card scheme rules.
+                </div>
+                <div className="text-[10px] text-slate-400 italic">
+                  *Configured per published network merchant guidelines (Visa Rules & Mastercard Transaction Processing Rules).
+                </div>
               </div>
             </div>
           </div>

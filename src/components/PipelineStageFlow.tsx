@@ -33,11 +33,16 @@ export const PipelineStageFlow: React.FC = () => {
             <span className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-700 text-xs flex items-center justify-center font-bold border border-indigo-100">1</span>
           </div>
           <h3 className="text-xs font-bold text-slate-800 mb-1">Context Diagnosis</h3>
-          <p className="text-[11px] text-slate-500 leading-relaxed mb-3 font-normal">
+          <p className="text-[11px] text-slate-500 leading-relaxed mb-2.5 font-normal">
             Interprets decline against customer baseline (tenure + historic success). Calculates <em className="text-slate-700 font-medium">Surprise Index</em> (blip vs decaying pattern).
           </p>
-          <div className="text-[10px] font-mono text-slate-500 bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-            Surprise = f(Baseline, Tenure, Error)
+          <div className="text-[10px] font-mono bg-white p-2 rounded-lg border border-slate-200 shadow-2xs space-y-1">
+            <div className="font-bold text-indigo-700 leading-tight">
+              Surprise = BaseRate × min(Tenure/12, 1) × (1 - Failures/10)
+            </div>
+            <div className="text-[9px] text-slate-400 font-sans">
+              Hard declines (stolen/closed/MAC 21) = 0.0 override
+            </div>
           </div>
         </div>
 
@@ -66,12 +71,12 @@ export const PipelineStageFlow: React.FC = () => {
             <span className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-700 text-xs flex items-center justify-center font-bold border border-emerald-100">3</span>
           </div>
           <h3 className="text-xs font-bold text-slate-800 mb-1">Dual-Score Ranking</h3>
-          <p className="text-[11px] text-slate-500 leading-relaxed mb-3 font-normal">
-            Computes two orthogonal outputs: <strong className="text-slate-700 font-semibold">Likelihood %</strong> (recovery probability) and <strong className="text-slate-700 font-semibold">Priority Rank</strong> (value-at-risk × urgency).
+          <p className="text-[11px] text-slate-500 leading-relaxed mb-2.5 font-normal">
+            Computes two orthogonal outputs: <strong className="text-slate-700 font-semibold">Likelihood %</strong> (recovery probability) and <strong className="text-slate-700 font-semibold">Priority Rank</strong> (Value [0–60] + Dunning Urgency [0–40]).
           </p>
-          <div className="text-[10px] font-mono text-slate-600 bg-white p-2 rounded-lg border border-slate-200 shadow-2xs flex justify-between">
-            <span>P(Succ): 0-100%</span>
-            <span>Priority: 0-100</span>
+          <div className="text-[10px] font-mono text-slate-600 bg-white p-2 rounded-lg border border-slate-200 shadow-2xs flex justify-between items-center">
+            <span>P(Succ): 0–100%</span>
+            <span className="text-indigo-700 font-bold">Priority: Value+Urgency (0–100)</span>
           </div>
         </div>
 
@@ -81,12 +86,15 @@ export const PipelineStageFlow: React.FC = () => {
             <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Stage 4</span>
             <span className="w-6 h-6 rounded-lg bg-amber-50 text-amber-700 text-xs flex items-center justify-center font-bold border border-amber-100">4</span>
           </div>
-          <h3 className="text-xs font-bold text-slate-800 mb-1">Bounded Ceilings</h3>
-          <p className="text-[11px] text-slate-500 leading-relaxed mb-3 font-normal">
-            Enforces hard Visa (15) / Mastercard (10) 30-day limits. On ceiling reached: automated clean handoff to CS team.
+          <h3 className="text-xs font-bold text-slate-800 mb-1">Bounded Ceilings*</h3>
+          <p className="text-[11px] text-slate-500 leading-relaxed mb-2.5 font-normal">
+            Enforces Visa (15) / Mastercard (10) 30-day limits*. On ceiling reached: automated clean handoff to CS team.
           </p>
-          <div className="text-[10px] font-mono text-amber-900 bg-amber-50/80 p-2 rounded-lg border border-amber-200 shadow-2xs font-semibold">
-            Visa: ≤15/30d • MC: ≤10/30d
+          <div className="text-[10px] font-mono text-amber-900 bg-amber-50/80 p-2 rounded-lg border border-amber-200 shadow-2xs font-semibold space-y-0.5">
+            <div>Visa: ≤15/30d • MC: ≤10/30d*</div>
+            <div className="text-[8.5px] text-slate-400 font-sans font-normal italic leading-tight">
+              *Per published network merchant guidelines
+            </div>
           </div>
         </div>
       </div>

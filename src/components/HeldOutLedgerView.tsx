@@ -155,20 +155,45 @@ export const HeldOutLedgerView: React.FC<HeldOutLedgerViewProps> = ({
                   <td className="py-3 px-4 text-center font-medium text-slate-500">{metrics.all.hardDeclinesCompliantlyStopped} cases</td>
                 </tr>
                 <tr>
-                  <td className="py-3 px-4 font-bold text-slate-800">Network Cap Violations (Visa 15 / MC 10)</td>
+                  <td className="py-3 px-4 font-bold text-slate-800">
+                    Network Cap Violations (Visa 15 / MC 10)*
+                  </td>
                   <td className="py-3 px-4 text-center font-black text-emerald-600">0 (100% compliant)</td>
                   <td className="py-3 px-4 text-center font-bold text-emerald-600">0</td>
                   <td className="py-3 px-4 text-center font-semibold text-emerald-600">0</td>
                 </tr>
                 <tr>
-                  <td className="py-3 px-4 font-bold text-slate-800">Avoided Fines & Penalty Value</td>
-                  <td className="py-3 px-4 text-center font-mono font-bold text-amber-700">₹{metrics.heldOut.preventedFinesINR.toLocaleString('en-IN')}</td>
-                  <td className="py-3 px-4 text-center font-mono font-semibold text-amber-700">₹{metrics.design.preventedFinesINR.toLocaleString('en-IN')}</td>
-                  <td className="py-3 px-4 text-center font-mono font-medium text-amber-700">₹{metrics.all.preventedFinesINR.toLocaleString('en-IN')}</td>
+                  <td className="py-3 px-4 font-bold text-slate-800">
+                    <div>Avoided Fines & Penalty Value</div>
+                    <div className="text-[10px] text-slate-400 font-normal font-mono mt-0.5">
+                      (Hard Stops × ₹25k) + (Ceilings × ₹15k)
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 text-center font-mono font-bold text-amber-700">
+                    <div>₹{metrics.heldOut.preventedFinesINR.toLocaleString('en-IN')}</div>
+                    <div className="text-[9.5px] text-slate-400 font-sans font-normal">
+                      ({metrics.heldOut.hardDeclinesCompliantlyStopped}×25k + {metrics.heldOut.networkCeilingsRespected}×15k)
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 text-center font-mono font-semibold text-amber-700">
+                    <div>₹{metrics.design.preventedFinesINR.toLocaleString('en-IN')}</div>
+                    <div className="text-[9.5px] text-slate-400 font-sans font-normal">
+                      ({metrics.design.hardDeclinesCompliantlyStopped}×25k + {metrics.design.networkCeilingsRespected}×15k)
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 text-center font-mono font-medium text-amber-700">
+                    <div>₹{metrics.all.preventedFinesINR.toLocaleString('en-IN')}</div>
+                    <div className="text-[9.5px] text-slate-400 font-sans font-normal">
+                      ({metrics.all.hardDeclinesCompliantlyStopped}×25k + {metrics.all.networkCeilingsRespected}×15k)
+                    </div>
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
+          <p className="text-[10px] text-slate-400 italic -mt-1 px-1">
+            *Ceiling thresholds (Visa: max 15, Mastercard: max 10 per 30 days) configured per published network merchant guidelines; may vary across acquiring regions and MCCs. Avoided fines calculated at ₹25k/hard decline retry and ₹15k/excessive retry ceiling violation under card scheme monitoring programs.
+          </p>
 
           {/* Held Out Case Breakdown */}
           <div className="space-y-2.5">

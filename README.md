@@ -15,49 +15,53 @@ This project implements an **Autonomous Payment Recovery Agent** that diagnoses 
 
 ---
 
-## 🏗️ Architecture & 4-Stage Decision Pipel
-┌────────────────────────────────────┐
-                 │   Razorpay Webhook: payment.failed │
-                 └─────────────────┬──────────────────┘
-                                   │
-                                   ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│ STAGE 1: CONTEXT-ADJUSTED DIAGNOSIS │
-│ • Extracts Razorpay Error Taxonomies (BAD_REQUEST, GATEWAY_ERROR, etc.) │
-│ • Ingests Customer Payment History & Tenure Baseline │
-│ • Computes Anomaly "Surprise Index" for VIP vs. Chronic Failure detection │
-└─────────────────────────────────────┬──────────────────────────────────────┘
-│
-▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│ STAGE 2: 3-ZONE ACTION CLASSIFICATION │
-│ • RETRY_NOW : Transient gateway timeouts, network dropouts with jitter │
-│ • RETRY_LATER : Soft balance / daily limit declines on smart payday windows│
-│ • NEVER_RETRY : Hard declines (stolen card, closed account, mandate void) │
-└─────────────────────────────────────┬──────────────────────────────────────┘
-│
-▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│ STAGE 3: DUAL-SCORE PRIORITIZATION │
-│ • Orthogonal Scoring: Recovery Likelihood % vs. Recovery Priority Score │
-│ • Weighted by Contract Value (MRR/ARR), Urgency Factor & Retry Exhaustion │
-└─────────────────────────────────────┬──────────────────────────────────────┘
-│
-▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│ STAGE 4: BOUNDED EXECUTION & COMPLIANCE GUARD │
-│ • Visa Cap Guard: Max 15 attempts per rolling 30-day window │
-│ • Mastercard Cap Guard: Max 10 attempts per rolling 30-day window │
-│ • Zero-Retry Circuit Breaker on Hard Declines │
-└─────────────────────────────────────┬──────────────────────────────────────┘
-│
-┌──────────────────┴──────────────────┐
-▼ ▼
-┌───────────────────────────┐ ┌───────────────────────────┐
-│ Autonomous Retry Exec │ │ Gemini AI Smart Outreach │
-│ (Razorpay SDK / API) │ │ (WhatsApp / SMS / Email) │
-└───────────────────────────┘ └───────────────────────────┘
-                                   ---
+## 🏗️ Architecture & 4-Stage Decision Pipeline
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│              Razorpay Webhook: payment.failed              │
+└─────────────────────────────┬──────────────────────────────┘
+                              │
+                              ▼
+┌────────────────────────────────────────────────────────────┐
+│ STAGE 1: CONTEXT-ADJUSTED DIAGNOSIS                        │
+│ • Extracts Razorpay Error Taxonomies                       │
+│ • Ingests Customer Payment History & Tenure Baseline       │
+│ • Computes Anomaly "Surprise Index" for VIP detection      │
+└─────────────────────────────┬──────────────────────────────┘
+                              │
+                              ▼
+┌────────────────────────────────────────────────────────────┐
+│ STAGE 2: 3-ZONE ACTION CLASSIFICATION                      │
+│ • RETRY_SOON  : Transient gateway timeouts & dropouts      │
+│ • RETRY_LATER : Soft balance declines on smart payday sync │
+│ • NEVER_RETRY : Hard declines (stolen, closed, MAC 21)     │
+└─────────────────────────────┬──────────────────────────────┘
+                              │
+                              ▼
+┌────────────────────────────────────────────────────────────┐
+│ STAGE 3: DUAL-SCORE PRIORITIZATION                         │
+│ • Orthogonal Scoring: Recovery Likelihood % vs Priority    │
+│ • Weighted by Contract Value (MRR/ARR) & Urgency           │
+└─────────────────────────────┬──────────────────────────────┘
+                              │
+                              ▼
+┌────────────────────────────────────────────────────────────┐
+│ STAGE 4: BOUNDED EXECUTION & COMPLIANCE GUARD              │
+│ • Visa Cap Guard: Max 15 attempts per rolling 30-day window│
+│ • Mastercard Cap Guard: Max 10 attempts per 30-day window  │
+│ • Zero-Retry Circuit Breaker on Hard Declines              │
+└─────────────────────────────┬──────────────────────────────┘
+                              │
+              ┌───────────────┴───────────────┐
+              ▼                               ▼
+┌───────────────────────────┐   ┌───────────────────────────┐
+│  Autonomous Retry Engine  │   │  Gemini AI Smart Outreach │
+│    (Razorpay SDK / API)   │   │  (WhatsApp / SMS / Email) │
+└───────────────────────────┘   └───────────────────────────┘
+```
+
+---
 
 ## 📐 Mathematical Models & Formulas
 
@@ -78,9 +82,33 @@ A multi-factor predictive probability combining:
 $$\text{Likelihood} = \max\left(0\%, \min\left(100\%, (W_e \times 100) + (B_s \times \text{Surprise}) - (P_r \times \text{Prior Attempts})\right)\right)$$
 
 ### 3. Recovery Priority Score
-Determines the dynamic queue order to maximize recovered revenue per agent cycle:
+Determines the dynamic queue order (0–100 rank) to triage cases via an additive dual-factor formula:
 
-$$\text{Priority Score} = \text{Amount (INR)} \times \text{Recovery Likelihood} \times \text{Urgency Factor}$$
+$$\text{Priority Rank} = \min\left(100, \text{Normalized Value} + \text{Normalized Urgency}\right)$$
+
+$$\text{Normalized Value (0--60 pts)} = \min\left(60, \frac{\text{Amount INR}}{8,000} \times 60\right)$$
+
+$$\text{Normalized Urgency (0--40 pts)} = \min\left(40, (14 - \text{Safe Days Left}) \times \frac{40}{13}\right)$$
+
+$$\text{Hard Decline Override: Priority Rank} = 0 \text{ when Zone} = \text{NEVER\_RETRY}$$
+
+- **Value Component**: Scales linearly with contract value up to ₹8,000 (capping at 60 pts).
+- **Urgency Component**: Scales as the 14-day dunning window elapses, reaching maximum 40 pts when only 1 day remains before subscription termination.
+
+### 4. Avoided Fines & Penalties Calculation (₹3,60,000 Portfolio Total)
+Card scheme excessive retry monitoring programs penalize merchants who repeatedly attempt authorizations on dead instruments or breach retry caps:
+
+$$\text{Avoided Fines} = (\text{Hard Declines Stopped} \times ₹25,000) + (\text{Ceiling Halts Enforced} \times ₹15,000)$$
+
+- **Hard Decline Circuit Breaker (₹25,000 per violation avoided)**: Retrying a stolen, closed, or customer-revoked (MAC 21) card violates scheme excessive retry rules. Halting these immediately saves ~₹25,000 ($300) per incident.
+- **Network Ceiling Stop (₹15,000 per violation avoided)**: Stopping automated retries upon reaching the 30-day rolling network limit avoids excessive transaction monitoring penalties (~₹15,000 / $180 per incident).
+
+#### Portfolio & Benchmark Cohort Breakdown:
+| Cohort Split | Cases | Hard Declines Compliantly Stopped (× ₹25k) | Ceiling Halts Respected (× ₹15k) | Total Avoided Fines |
+| :--- | :---: | :---: | :---: | :---: |
+| **Held-Out Test Cohort** | 25 | 4 cases (₹1,00,000) | 4 cases (₹60,000) | **₹1,60,000** |
+| **Design Tuning Cohort** | 25 | 5 cases (₹1,25,000) | 5 cases (₹75,000) | **₹2,00,000** |
+| **Full Portfolio Aggregate** | **50** | **9 cases (₹2,25,000)** | **9 cases (₹1,35,000)** | **₹3,60,000** |
 
 ---
 
@@ -88,10 +116,12 @@ $$\text{Priority Score} = \text{Amount (INR)} \times \text{Recovery Likelihood} 
 
 | Network / Regulation | Rule Specification | System Enforcement |
 | :--- | :--- | :--- |
-| **Visa Scheme Rules** | Max **15 retry attempts** within rolling 30-day window | Automated stop counter; blocks API dispatch after attempt 15 |
-| **Mastercard Scheme Rules**| Max **10 retry attempts** within rolling 30-day window | Automated stop counter; blocks API dispatch after attempt 10 |
+| **Visa Scheme Rules\*** | Max **15 retry attempts** within rolling 30-day window | Automated stop counter; blocks API dispatch after attempt 15 |
+| **Mastercard Scheme Rules\***| Max **10 retry attempts** within rolling 30-day window | Automated stop counter; blocks API dispatch after attempt 10 |
 | **RBI e-Mandate Circulars** | Pre-debit notification & customer consent tracking | Generates compliant mandate update URLs (`rzp.io/l/...`) |
 | **Hard Decline Policy** | Lost card, stolen card, fraudulent card, account closed | **Immediate Zero-Retry Stop**; directs straight to card update outreach |
+
+*\*Note: Retry ceilings (e.g. Visa 15, Mastercard 10 per 30-day window) are configured per published network merchant guidelines (such as the Visa Rules and Core Guidelines and Mastercard Transaction Processing Rules) and excessive retry monitoring programs. Exact enforcement thresholds may vary based on merchant category code (MCC), card product tier, and acquiring bank region.*
 
 ---
 
@@ -118,10 +148,11 @@ $$\text{Priority Score} = \text{Amount (INR)} \times \text{Recovery Likelihood} 
 git clone https://github.com/your-username/razorpay-subscription-recovery-agent.git
 cd razorpay-subscription-recovery-agent
 npm install
-2. Configure Environment Variables
-Create a .env file in the root directory:
-code
-Env
+```
+
+### 2. Configure Environment Variables
+Create a `.env` file in the root directory:
+```env
 # Razorpay API Credentials
 RAZORPAY_KEY_ID=rzp_test_your_key_id
 RAZORPAY_KEY_SECRET=your_key_secret
@@ -133,41 +164,61 @@ GEMINI_API_KEY=your_gemini_api_key
 # Node Environment
 NODE_ENV=development
 PORT=3000
-3. Run Development Server
-code
-Bash
+```
+
+### 3. Run Development Server
+```bash
 npm run dev
-Open http://localhost:3000 in your browser.
-🧪 Testing Webhooks with Razorpay
-In your Razorpay Dashboard, navigate to Account & Settings → Webhooks → Add New Webhook.
-Set the Webhook URL to your hosted endpoint or ngrok tunnel:
-code
-Code
-https://<your-domain>/api/razorpay/webhook
-Set your Secret to match RAZORPAY_WEBHOOK_SECRET.
-In the Active Events list, select:
-payment.failed (Primary trigger)
-payment.authorized
-payment_link.paid
-Click Save Webhook.
-Use Razorpay's "Send Test Webhook" tool to verify live ingestion.
-📂 Project Structure
-code
-Code
-├── server.ts                 # Express backend, Razorpay SDK, Webhooks & Gemini API routes
+```
+Open `http://localhost:3000` in your browser.
+
+---
+
+## 🧪 Testing Webhooks with Razorpay
+
+1. In your Razorpay Dashboard, navigate to **Account & Settings → Webhooks → Add New Webhook**.
+2. Set the Webhook URL to your hosted endpoint:
+   ```text
+   https://<your-domain>/api/razorpay/webhook
+   ```
+3. Set your Secret to match `RAZORPAY_WEBHOOK_SECRET`.
+4. In the Active Events list, select:
+   - `payment.failed` (Primary trigger)
+   - `payment.authorized`
+   - `payment_link.paid`
+5. Click **Save Webhook**.
+6. Use Razorpay's "Send Test Webhook" tool or the built-in Sandbox Lab to verify live ingestion.
+
+---
+
+## 📂 Project Structure
+
+```text
+├── server.ts                       # Express backend, Razorpay SDK, Webhooks & Gemini 3.7 API routes
 ├── src/
-│   ├── App.tsx               # Main Recovery Agent Dashboard UI
-│   ├── types.ts              # TypeScript schemas for Cases, Declines & Audit Trails
-│   ├── benchmarkData.ts      # Design & Held-Out evaluation dataset
-│   ├── components/
-│   │   ├── CaseCard.tsx      # Triage card with zone badges & priority scores
-│   │   ├── CaseDrawer.tsx    # 4-Stage audit inspector & interactive action controls
-│   │   ├── SandboxModal.tsx  # Scenario simulation runner
-│   │   ├── OutreachModal.tsx # Gemini AI message synthesizer
-│   │   └── MetricsHeader.tsx # Live pipeline telemetry & salvage rates
+│   ├── App.tsx                     # Main Recovery Agent Dashboard UI
+│   ├── types.ts                    # TypeScript schemas for Cases, Declines, Audit Trails & Compliance
+│   ├── engine/
+│   │   └── recoveryPipeline.ts     # 4-Stage Core Recovery Engine (Diagnosis, Zones, Scoring, Compliance)
+│   ├── data/
+│   │   └── seedData.ts             # Evaluation datasets (Design & Held-Out Cohorts) with dynamic pipeline runs
+│   └── components/
+│       ├── Header.tsx              # Navigation bar, status indicators, and ledger controls
+│       ├── MetricsOverview.tsx     # Recovery rate, revenue saved, and compliance statistics
+│       ├── PipelineStageFlow.tsx   # Interactive visualization of the 4-Stage bounded pipeline
+│       ├── CaseTable.tsx           # Triage case table with sorting, filters, and priority ranking
+│       ├── CaseDetailModal.tsx     # 4-Stage audit inspector, compliance gates & action controls
+│       ├── HeldOutLedgerView.tsx   # Verifiable cohort comparison & audit trail exporter
+│       ├── RazorpaySandboxLab.tsx  # Scenario simulation runner & custom webhook test generator
+│       └── ArchitectureDocsModal.tsx # Interactive architecture and compliance documentation
 ├── index.html
 ├── package.json
 └── vite.config.ts
-📄 License
+```
+
+---
+
+## 📄 License
 This project is licensed under the MIT License.
+
 
