@@ -312,7 +312,18 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
                   <div className="text-3xl font-black text-emerald-600 my-1">
                     {caseItem.trendScore.recoveryLikelihoodPct}%
                   </div>
-                  <p className="text-[11px] text-slate-400 font-medium">Statistical probability of success</p>
+                  <p className="text-[11px] text-slate-600 font-medium">
+                    {isHardDecline ? (
+                      'Terminal 0% (Hard Decline Lock)'
+                    ) : caseItem.classification.zone === 'RETRY_SOON' ? (
+                      `${caseItem.diagnosis.isAnomalousBlip ? '92% (Blip Base)' : '78% (Gateway Base)'}${caseItem.customer.riskTier === 'low_risk_vip' ? ' + 8% (VIP)' : caseItem.customer.riskTier === 'high_churn_risk' ? ' - 18% (Risk)' : ''}`
+                    ) : caseItem.classification.zone === 'RETRY_LATER' ? (
+                      `${caseItem.diagnosis.isAnomalousBlip ? '84% (Blip Base)' : '58% (Liquidity Base)'}${caseItem.customer.riskTier === 'low_risk_vip' ? ' + 8% (VIP)' : caseItem.customer.riskTier === 'high_churn_risk' ? ' - 18% (Risk)' : ''}`
+                    ) : (
+                      `${caseItem.customer.tenureMonths > 6 ? '74% (Tenured)' : '62% (New)'}${caseItem.customer.riskTier === 'low_risk_vip' ? ' + 8% (VIP)' : caseItem.customer.riskTier === 'high_churn_risk' ? ' - 18% (Risk)' : ''}`
+                    )}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Zone Baseline + Risk Tier Modifier</p>
                 </div>
 
                 {/* Priority Score */}
@@ -323,11 +334,11 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
                   <div className="text-3xl font-black text-indigo-600 my-1">
                     {caseItem.trendScore.recoveryPriorityScore}/100
                   </div>
-                  <p className="text-[11px] text-slate-600 font-medium">
-                    Value ({Math.min(60, Math.round((caseItem.customer.amountINR / 8000) * 60))}pts) + Urgency ({caseItem.classification.isHardDecline ? 0 : Math.min(40, Math.round((14 - Math.max(1, caseItem.trendScore.daysRemainingInDunning)) * (40 / 13)))}pts)
+                  <p className="text-[11px] text-slate-700 font-semibold">
+                    ₹{caseItem.customer.amountINR.toLocaleString('en-IN')} · {Math.min(60, Math.round((caseItem.customer.amountINR / 8000) * 60))}pts Value + {caseItem.classification.isHardDecline ? 0 : Math.min(40, Math.round((14 - Math.max(1, caseItem.trendScore.daysRemainingInDunning)) * (40 / 13)))}pts Urgency
                   </p>
                   <p className="text-[10px] text-slate-400 mt-0.5">
-                    ₹{caseItem.customer.amountINR.toLocaleString('en-IN')} at risk • {caseItem.trendScore.daysRemainingInDunning}d left of 14d
+                    Additive Triage Score • {caseItem.trendScore.daysRemainingInDunning}d left in dunning window
                   </p>
                 </div>
 

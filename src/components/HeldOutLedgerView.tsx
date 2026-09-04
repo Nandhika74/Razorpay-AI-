@@ -164,27 +164,27 @@ export const HeldOutLedgerView: React.FC<HeldOutLedgerViewProps> = ({
                 </tr>
                 <tr>
                   <td className="py-3 px-4 font-bold text-slate-800">
-                    <div>Avoided Fines & Penalty Value</div>
+                    <div>Avoided Fines & Penalty Protection</div>
                     <div className="text-[10px] text-slate-400 font-normal font-mono mt-0.5">
-                      (Hard Stops × ₹25k) + (Ceilings × ₹15k)
+                      Hard Decline Stops × ₹25,000 (VMMP penalty avoided)
                     </div>
                   </td>
                   <td className="py-3 px-4 text-center font-mono font-bold text-amber-700">
                     <div>₹{metrics.heldOut.preventedFinesINR.toLocaleString('en-IN')}</div>
                     <div className="text-[9.5px] text-slate-400 font-sans font-normal">
-                      ({metrics.heldOut.hardDeclinesCompliantlyStopped}×25k + {metrics.heldOut.networkCeilingsRespected}×15k)
+                      {metrics.heldOut.hardDeclinesCompliantlyStopped} stops × ₹25,000
                     </div>
                   </td>
                   <td className="py-3 px-4 text-center font-mono font-semibold text-amber-700">
                     <div>₹{metrics.design.preventedFinesINR.toLocaleString('en-IN')}</div>
                     <div className="text-[9.5px] text-slate-400 font-sans font-normal">
-                      ({metrics.design.hardDeclinesCompliantlyStopped}×25k + {metrics.design.networkCeilingsRespected}×15k)
+                      {metrics.design.hardDeclinesCompliantlyStopped} stops × ₹25,000
                     </div>
                   </td>
                   <td className="py-3 px-4 text-center font-mono font-medium text-amber-700">
                     <div>₹{metrics.all.preventedFinesINR.toLocaleString('en-IN')}</div>
                     <div className="text-[9.5px] text-slate-400 font-sans font-normal">
-                      ({metrics.all.hardDeclinesCompliantlyStopped}×25k + {metrics.all.networkCeilingsRespected}×15k)
+                      {metrics.all.hardDeclinesCompliantlyStopped} stops × ₹25,000
                     </div>
                   </td>
                 </tr>

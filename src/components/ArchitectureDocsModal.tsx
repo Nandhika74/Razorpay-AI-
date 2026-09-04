@@ -74,8 +74,9 @@ export const ArchitectureDocsModal: React.FC<ArchitectureDocsModalProps> = ({
                 <div>
                   <strong className="text-slate-800 font-bold">Stage 3 — Dual-Score Trend Assessment:</strong> Computes two distinct orthogonal metrics: <strong>Recovery Likelihood %</strong> (empirical statistical probability) and <strong>Recovery Priority Rank</strong> (additive 0–100 queue priority).
                 </div>
-                <div className="font-mono text-[11px] text-slate-700 bg-white p-2 rounded-lg border border-slate-200">
-                  Priority Rank = min(100, Normalized Value [0–60 pts] + Dunning Urgency [0–40 pts])
+                <div className="font-mono text-[11px] text-slate-700 bg-white p-2 rounded-lg border border-slate-200 space-y-1">
+                  <div>Likelihood % = Zone Baseline (Anomalous Blip: 92% Soon / 84% Later) + Risk Tier Modifier (+8% VIP / -18% Churn)</div>
+                  <div>Priority Rank = min(100, Normalized Value [0–60 pts] + Dunning Urgency [0–40 pts])</div>
                   <span className="block text-[9.5px] text-slate-400 font-sans mt-0.5">*Where Value = min(60, [Amount/8000]×60) and Urgency = min(40, [14 - DaysLeft] × [40/13]). Zone NEVER_RETRY = 0.</span>
                 </div>
               </div>

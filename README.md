@@ -74,12 +74,23 @@ $$\text{Surprise Index} = \text{Historical Success Rate} \times \left(\frac{\min
 - **At-Risk / New Customer (Tenure: 2m, 3 failures)**: $0.50 \times \frac{2}{12} \times 0.70 = \mathbf{0.058}$ *(Low surprise, standard dunning queue)*
 
 ### 2. Recovery Likelihood Score (%)
-A multi-factor predictive probability combining:
-- **Error Code Reversibility Weight** ($W_e$): `GATEWAY_ERROR` (95%), `insufficient_fund` (75%), `card_closed` (0%)
-- **Surprise Index Boost** ($B_s$): $+15\%$ for VIP anomalies
-- **Retry Fatigue Penalty** ($P_r$): $-8\%$ deduction per prior failed attempt
+The empirical predictive probability combines the decline reason's zone, customer surprise blip status, and risk tier:
 
-$$\text{Likelihood} = \max\left(0\%, \min\left(100\%, (W_e \times 100) + (B_s \times \text{Surprise}) - (P_r \times \text{Prior Attempts})\right)\right)$$
+$$\text{Likelihood (\%)} = \text{Zone Baseline (conditioned on Surprise Blip)} + \text{Risk Tier Modifier}$$
+
+- **Zone Baselines**:
+  - `RETRY_SOON` (Gateway / Switch Timeout): **92%** for Anomalous Blip ($\text{Surprise} \ge 0.70$), **78%** standard
+  - `RETRY_LATER` (Balance / Liquidity): **84%** for Anomalous Blip ($\text{Surprise} \ge 0.70$), **58%** standard
+  - `NEEDS_ACTION` (Expired Card / 3DS Auth): **74%** for tenured ($>6\text{m}$), **62%** for new customers
+  - `NEVER_RETRY` (Stolen / Closed / MAC 21): **0%** terminal compliance lock
+- **Risk Tier Modifiers**:
+  - `low_risk_vip`: $+8\%$ boost (capped at $99\%$)
+  - `high_churn_risk`: $-18\%$ penalty
+- **Napkin Math Walkthrough (Aarav Sharma, RC-DES-101)**:
+  - Error: `insufficient_fund` $\rightarrow$ Zone: `RETRY_LATER`
+  - Customer: 18m tenure, 94% historic success $\rightarrow \text{Surprise Index} = 0.85 \ge 0.70$ (Anomalous Blip) $\rightarrow \text{Base} = 84\%$
+  - Risk Segment: `low_risk_vip` $\rightarrow \text{Bonus} = +8\%$
+  - $\mathbf{\text{Final Likelihood} = 84\% + 8\% = 92\%}$ *(reconciles exactly with code and UI)*
 
 ### 3. Recovery Priority Score
 Determines the dynamic queue order (0–100 rank) to triage cases via an additive dual-factor formula:
@@ -94,21 +105,23 @@ $$\text{Hard Decline Override: Priority Rank} = 0 \text{ when Zone} = \text{NEVE
 
 - **Value Component**: Scales linearly with contract value up to ₹8,000 (capping at 60 pts).
 - **Urgency Component**: Scales as the 14-day dunning window elapses, reaching maximum 40 pts when only 1 day remains before subscription termination.
+- **UI Display**: Formatted clearly as `₹Amount · ValuePts pts Value + UrgencyPts pts Urgency` to avoid misleading multiplication notation.
 
-### 4. Avoided Fines & Penalties Calculation (₹3,60,000 Portfolio Total)
-Card scheme excessive retry monitoring programs penalize merchants who repeatedly attempt authorizations on dead instruments or breach retry caps:
+### 4. Avoided Fines & Penalties Calculation (₹2,25,000 Portfolio Total)
+Card scheme excessive retry monitoring programs penalize merchants who repeatedly attempt authorizations on dead instruments:
 
-$$\text{Avoided Fines} = (\text{Hard Declines Stopped} \times ₹25,000) + (\text{Ceiling Halts Enforced} \times ₹15,000)$$
+$$\text{Avoided Fines} = \text{Hard Declines Compliantly Stopped} \times ₹25,000$$
 
-- **Hard Decline Circuit Breaker (₹25,000 per violation avoided)**: Retrying a stolen, closed, or customer-revoked (MAC 21) card violates scheme excessive retry rules. Halting these immediately saves ~₹25,000 ($300) per incident.
-- **Network Ceiling Stop (₹15,000 per violation avoided)**: Stopping automated retries upon reaching the 30-day rolling network limit avoids excessive transaction monitoring penalties (~₹15,000 / $180 per incident).
+- **Hard Decline Circuit Breaker (₹25,000 per violation avoided)**: Retrying a stolen, closed, or customer-revoked (MAC 21) card violates scheme excessive retry rules (VMMP / Category 2). Halting these immediately at 0 retries saves ~₹25,000 ($300) per incident.
+- **Single-Event Non-Double-Count Guarantee**: Unlike naive models that double-count 0-attempt hard stops as both hard declines and ceiling limits, our engine strictly separates Hard Decline Circuit Breakers (0 attempts used) from Network Rolling Ceilings (exhausted attempt budget).
+- **Network Rolling Ceilings**: 0 cap breaches across all 50 cases (100% compliant; all active dunning bounded under Visa $\le 15$ and Mastercard $\le 10$).
 
 #### Portfolio & Benchmark Cohort Breakdown:
-| Cohort Split | Cases | Hard Declines Compliantly Stopped (× ₹25k) | Ceiling Halts Respected (× ₹15k) | Total Avoided Fines |
+| Cohort Split | Cases | Hard Declines Compliantly Stopped (× ₹25,000) | Network Cap Violations | Total Avoided Fines |
 | :--- | :---: | :---: | :---: | :---: |
-| **Held-Out Test Cohort** | 25 | 4 cases (₹1,00,000) | 4 cases (₹60,000) | **₹1,60,000** |
-| **Design Tuning Cohort** | 25 | 5 cases (₹1,25,000) | 5 cases (₹75,000) | **₹2,00,000** |
-| **Full Portfolio Aggregate** | **50** | **9 cases (₹2,25,000)** | **9 cases (₹1,35,000)** | **₹3,60,000** |
+| **Held-Out Test Cohort** | 25 | 4 cases (₹1,00,000) | 0 (100% compliant) | **₹1,00,000** |
+| **Design Tuning Cohort** | 25 | 5 cases (₹1,25,000) | 0 (100% compliant) | **₹1,25,000** |
+| **Full Portfolio Aggregate** | **50** | **9 cases (₹2,25,000)** | **0 (100% compliant)** | **₹2,25,000** |
 
 ---
 

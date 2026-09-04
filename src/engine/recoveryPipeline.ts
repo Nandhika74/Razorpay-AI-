@@ -213,7 +213,7 @@ export function runStage4ExecutionCompliance(
   const isHardDecline = classification.zone === 'NEVER_RETRY';
   const effectiveAttempts = isHardDecline ? 0 : currentAttempts;
   const attemptsRemaining = isHardDecline ? 0 : Math.max(0, maxAllowed - effectiveAttempts);
-  const isCeilingReached = isHardDecline || effectiveAttempts >= maxAllowed;
+  const isCeilingReached = !isHardDecline && effectiveAttempts >= maxAllowed;
 
   let channel: ActionChannel = 'SILENT_NETWORK_RETRY';
   if (isHardDecline) {
@@ -265,11 +265,11 @@ export function evaluateBatch(cases: RecoveryCase[], splitFilter: 'design' | 'he
   const recoveryRatePct = totalAtRiskINR > 0 ? Math.round((totalRecoveredINR / totalAtRiskINR) * 1000) / 10 : 0;
 
   const hardDeclinesCompliantlyStopped = filtered.filter(c => c.status === 'EXCLUDED_HARD_DECLINE').length;
-  const networkCeilingsRespected = filtered.filter(c => c.compliance.isCeilingReached).length;
+  const networkCeilingsRespected = filtered.filter(c => !c.classification.isHardDecline && c.compliance.isCeilingReached).length;
   const complianceViolationsCount = filtered.filter(c => c.compliance.attemptCount > c.compliance.maxAllowedAttempts).length;
   
   // Grounded Visa/Mastercard Scheme Penalties Avoided:
-  // - Hard decline retries: ₹25,000 per violation under scheme excessive retry rules
+  // - Hard decline retries: ₹25,000 per violation under scheme excessive retry rules (VMMP / Category 2)
   // - Ceiling enforcement: ₹15,000 per avoided card scheme threshold breach
   const preventedFinesINR = hardDeclinesCompliantlyStopped * 25000 + networkCeilingsRespected * 15000;
   

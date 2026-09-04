@@ -1161,7 +1161,7 @@ function buildEvaluatedCase(spec: RawCaseSpec, split: 'design' | 'held_out'): Re
       timestamp: '2026-08-28T00:00:18.000Z',
       stage: 4,
       stageName: 'Stage 4: Bounded Execution & Network Ceilings',
-      action: compliance.isCeilingReached ? 'ENFORCE_CEILING_STOP' : `DISPATCH_${compliance.recommendedChannel}`,
+      action: classification.isHardDecline ? 'ENFORCE_HARD_DECLINE_CIRCUIT_BREAKER' : (compliance.isCeilingReached ? 'ENFORCE_CEILING_STOP' : `DISPATCH_${compliance.recommendedChannel}`),
       resultStatus: finalStatus,
       reason: compliance.complianceRuleApplied,
       complianceRule: `${compliance.network} Rolling-30D Cap: max ${compliance.maxAllowedAttempts} attempts`,
