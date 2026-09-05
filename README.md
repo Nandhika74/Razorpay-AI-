@@ -1,5 +1,5 @@
 > **🎥 Demo Video:** [Watch the 5-minute walkthrough](https://youtu.be/T9qcoiiNrkQ)
-# ⚡ Razorpay Autonomous Subscription Recovery Agent
+# ⚡ PayPulse- Autonomous Subscription Recovery Agent
 > **Track 03: Failed-Subscription Recovery Agent**  
 > An intelligent, autonomous 4-stage decision engine and dunning orchestration pipeline for recovering failed recurring payments, e-mandates, and subscriptions while enforcing card scheme compliance.
 
