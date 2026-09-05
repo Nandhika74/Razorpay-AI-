@@ -159,20 +159,21 @@ async function startServer() {
     }
 
     // Terminal State Protection: Once a case is RECOVERED, payment is settled.
-    // No further dunning, retry, or escalation actions can be taken.
-    if (caseItem.status === 'RECOVERED') {
+    // Allow TEST_DISPATCH for demonstration/previewing notifications, but block retries on closed invoices.
+    if (caseItem.status === 'RECOVERED' && actionType !== 'TEST_DISPATCH') {
       res.status(400).json({
-        error: `Case is already RECOVERED and settled (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}). No further recovery actions can be executed on a closed, paid invoice.`,
+        error: `Case is already RECOVERED and settled (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}). No further recovery actions can be executed on a closed, paid invoice. Use Test Dispatch to simulate sending an informational receipt.`,
       });
       return;
     }
 
     // CRITICAL COMPLIANCE CIRCUIT BREAKER:
     // Hard declines (stolen/closed/MAC 21) are permanently invalid payment instruments.
-    // Automated retries, customer 1-click links, and recovery dunning are strictly blocked under Card Scheme rules.
+    // Retrying the dead card or attempting to auto-charge it is strictly blocked under Card Scheme rules.
+    // However, sending an informational replacement card link or running a test dispatch is permitted.
     if (
       caseItem.classification.zone === 'NEVER_RETRY' &&
-      ['SMART_RETRY', 'DISPATCH_COMMUNICATION', 'SIMULATE_CUSTOMER_PAY'].includes(actionType)
+      ['SMART_RETRY', 'SIMULATE_CUSTOMER_PAY'].includes(actionType)
     ) {
       res.status(400).json({
         error: `Compliance Block: Hard decline enforced (${caseItem.failureEvent.decline.reason || caseItem.compliance.macStopCodeTriggered}). Card is stolen, cancelled, or revoked. No recovery action permitted on this instrument. Must escalate to Human CS for payment method swap.`,
@@ -182,7 +183,18 @@ async function startServer() {
 
     const nowIso = new Date().toISOString();
 
-    if (actionType === 'SMART_RETRY') {
+    if (actionType === 'TEST_DISPATCH') {
+      caseItem.auditTrail.push({
+        id: `aud_${Date.now()}`,
+        timestamp: nowIso,
+        stage: 4,
+        stageName: 'Stage 4: Outreach Dispatch (Simulation)',
+        action: `TEST_OUTREACH_DISPATCHED`,
+        resultStatus: 'DELIVERED',
+        reason: customNote || `Test outreach dispatched to recipient. Delivery receipt generated.`,
+        actor: 'AI_AGENT',
+      });
+    } else if (actionType === 'SMART_RETRY') {
       // Check ceiling rule
       if (caseItem.compliance.attemptCount >= caseItem.compliance.maxAllowedAttempts) {
         res.status(400).json({
@@ -605,9 +617,12 @@ Failure Reason: ${caseItem.failureEvent.decline.reason} (${caseItem.failureEvent
 Customer Baseline: ${caseItem.customer.tenureMonths} months tenure, ${Math.round(caseItem.customer.historicalSuccessRate * 100)}% historical success
 Zone: ${caseItem.classification.zone}
 Channel: ${channel || 'whatsapp'}
-Language: ${language || 'english'} (If Hinglish, write natural, professional conversational Romanized Hindi-English, e.g. "Namaste ${caseItem.customer.name}, aapka ${caseItem.customer.planName} payment momentarily uncompleted raha. Tap karke 1-click me refresh karein:")
+Language: ${language || 'english'} 
+- If 'hindi': Write polite, respectful conversational Hindi using Devanagari script (e.g. "नमस्ते ${caseItem.customer.name}, आपकी ${caseItem.customer.planName} सदस्यता का स्वतः भुगतान...").
+- If 'hinglish': Write natural, professional conversational Romanized Hindi-English (e.g. "Namaste ${caseItem.customer.name}! Aapka ${caseItem.customer.planName} subscription payment momentarily complete nahi ho paya. Tap karke 1-click me refresh karein:").
+- If 'english': Write clear, concise, professional English.
 
-Keep it concise, friendly, compliant with RBI guidelines, and include the 1-click update link: https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}`;
+Keep it concise, friendly, compliant with RBI recurring mandate guidelines, and include the 1-click update link: https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}`;
 
         const response = await ai.models.generateContent({
           model: 'gemini-3.7-flash',
@@ -615,19 +630,21 @@ Keep it concise, friendly, compliant with RBI guidelines, and include the 1-clic
         });
 
         generatedBody = response.text || '';
-        personalizedReasoning = `Synthesized via Google Gemini 3.7 Flash using ${caseItem.customer.tenureMonths}-month customer baseline context and ${caseItem.failureEvent.decline.reason} error taxonomy.`;
+        personalizedReasoning = `Synthesized via Google Gemini 3.7 Flash using ${caseItem.customer.tenureMonths}-month customer baseline context, ${language || 'english'} linguistic adaptation, and ${caseItem.failureEvent.decline.reason} error taxonomy.`;
       } catch (err: any) {
         console.warn('Gemini generation failed, using intelligent template:', err);
       }
     }
 
     if (!generatedBody) {
-      if (language === 'hinglish') {
+      if (language === 'hindi') {
+        generatedBody = `नमस्ते ${caseItem.customer.name}! 🙏\n\nआपकी ${caseItem.customer.planName} सदस्यता (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) का स्वतः भुगतान बैंक प्रमाणीकरण (${caseItem.failureEvent.decline.reason}) के कारण पूरा नहीं हो पाया।\n\nअपनी सेवा को बिना किसी रुकावट के जारी रखने के लिए, कृपया नीचे दिए गए सुरक्षित 1-क्लिक लिंक से भुगतान विधि अपडेट करें:\n\n👉 https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}\n\nकिसी भी सहायता के लिए आप इस संदेश का उत्तर दे सकते हैं। - Team Razorpay Support`;
+      } else if (language === 'hinglish') {
         generatedBody = `Namaste ${caseItem.customer.name}! 👋\n\nAapka ${caseItem.customer.planName} subscription (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) ka payment bank processing glitch ki wajah se complete nahi ho paya.\n\nAapki service bina kisi interruption ke continuous rahe, iske liye please neeche diye link se 1-click me payment refresh ya card update karein:\n\n👉 https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}\n\nKoi help chahiye ho toh reply karein. Team Razorpay Support`;
       } else {
-        generatedBody = `Hi ${caseItem.customer.name},\n\nYour recurring subscription payment for ${caseItem.customer.planName} (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) couldn't be processed due to a temporary bank authorization notice (${caseItem.failureEvent.decline.reason}).\n\nTo ensure your service remains uninterrupted, please refresh your payment method via this secure 1-click link:\n\n👉 https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}\n\nNeed assistance? Reply to this message anytime.`;
+        generatedBody = `Hi ${caseItem.customer.name},\n\nYour recurring subscription payment for ${caseItem.customer.planName} (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) couldn't be processed due to a temporary bank authorization notice (${caseItem.failureEvent.decline.reason}).\n\nTo ensure your service remains uninterrupted, please refresh your payment method via this secure 1-click link:\n\n👉 https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}\n\nNeed assistance? Reply to this message anytime. - Team Razorpay Support`;
       }
-      personalizedReasoning = `Generated with built-in heuristic template matching ${caseItem.classification.zone} zone rules.`;
+      personalizedReasoning = `Generated with built-in heuristic template matching ${caseItem.classification.zone} zone rules in ${language || 'english'}.`;
     }
 
     const draft = {

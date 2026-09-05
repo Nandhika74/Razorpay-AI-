@@ -12,30 +12,30 @@ export const MetricsOverview: React.FC<MetricsOverviewProps> = ({ metrics, selec
   const isLiveDemo = selectedSplit === 'live_demo';
 
   return (
-    <div id="metrics-overview" className="space-y-4">
-      {/* Split Framing Notice */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white px-6 py-3.5 rounded-2xl border border-slate-200 shadow-sm gap-3">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
+    <div id="metrics-overview" className="space-y-3">
+      {/* Subtle Dataset Context Strip */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 px-1 gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider border ${
             isHeldOut 
               ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
               : isLiveDemo
               ? 'bg-amber-50 text-amber-800 border-amber-200'
               : 'bg-indigo-50 text-indigo-700 border-indigo-100'
           }`}>
-            <span className={`w-2 h-2 rounded-full ${isHeldOut ? 'bg-emerald-500' : isLiveDemo ? 'bg-amber-500 animate-pulse' : 'bg-indigo-500'}`} />
-            {isHeldOut ? 'Held-Out Evaluation Split' : isLiveDemo ? 'Live Sandbox / Webhook Ingestion' : selectedSplit === 'design' ? 'Design / Tuning Split' : 'Aggregate (All Cases)'}
+            <span className={`w-1.5 h-1.5 rounded-full ${isHeldOut ? 'bg-emerald-500' : isLiveDemo ? 'bg-amber-500 animate-pulse' : 'bg-indigo-500'}`} />
+            {isHeldOut ? 'Held-Out Test Cohort' : isLiveDemo ? 'Live Sandbox / Webhooks' : selectedSplit === 'design' ? 'Design Tuning Cohort' : 'All Cohorts'}
           </span>
-          <span className="text-xs text-slate-500 font-medium">
+          <span className="text-slate-400 font-medium">
             {isHeldOut
-              ? 'Computed strictly on held-out test data — zero leakage, verified stopping rules, auditable accounting.'
+              ? 'Audited on held-out test data — zero leakage, verified scheme stopping rules.'
               : isLiveDemo
-              ? 'Real-time test events triggered via Razorpay test card presets or live webhook simulation.'
-              : 'Data used to calibrate surprise thresholds, backoff intervals, and priority weights.'}
+              ? 'Real-time test events triggered via Razorpay test card presets.'
+              : 'Used to calibrate surprise thresholds and backoff intervals.'}
           </span>
         </div>
-        <div className="text-xs font-medium text-slate-400">
-          Cohort Cases: <span className="font-bold text-slate-800">{metrics.totalCases}</span>
+        <div className="text-slate-400 shrink-0">
+          Cohort size: <span className="font-bold text-slate-700">{metrics.totalCases}</span>
         </div>
       </div>
 

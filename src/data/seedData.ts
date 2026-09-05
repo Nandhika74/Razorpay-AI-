@@ -1050,6 +1050,12 @@ function buildEvaluatedCase(spec: RawCaseSpec, split: 'design' | 'held_out'): Re
     historicalSuccessRate: spec.successRate,
     lastSuccessDate: '2026-07-28T00:00:00.000Z',
     typicalSalaryDay: spec.typicalSalaryDay || 1,
+    preferredLanguage:
+      spec.id.endsWith('1') || spec.id.endsWith('4') || spec.id.endsWith('7')
+        ? 'hindi'
+        : spec.id.endsWith('2') || spec.id.endsWith('5') || spec.id.endsWith('8')
+        ? 'hinglish'
+        : 'english',
     riskTier: spec.tenure >= 12 && spec.successRate >= 0.92 ? 'low_risk_vip' : spec.successRate >= 0.85 ? 'stable' : 'moderate',
   };
 

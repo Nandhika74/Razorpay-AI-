@@ -46,6 +46,7 @@ export interface CustomerProfile {
   historicalSuccessRate: number; // 0.0 to 1.0
   lastSuccessDate: string;
   typicalSalaryDay: number; // e.g. 1st or 30th of month
+  preferredLanguage?: 'english' | 'hindi' | 'hinglish';
   riskTier: 'low_risk_vip' | 'stable' | 'moderate' | 'high_churn_risk';
 }
 
@@ -104,7 +105,7 @@ export interface AuditEntry {
 
 export interface AIOutreachDraft {
   channel: 'whatsapp' | 'email' | 'sms';
-  language: 'english' | 'hinglish';
+  language: 'english' | 'hindi' | 'hinglish';
   subject?: string;
   messageBody: string;
   callToActionUrl: string;

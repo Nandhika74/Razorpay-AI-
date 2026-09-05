@@ -1,38 +1,70 @@
 import React from 'react';
-import { X, BookOpen, Layers, ShieldCheck, CheckCircle2, AlertTriangle, Terminal, Scale } from 'lucide-react';
+import { X, BookOpen, Layers, ShieldCheck, CheckCircle2, AlertTriangle, Terminal, Scale, ArrowLeft } from 'lucide-react';
 
 interface ArchitectureDocsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  onBackToQueue?: () => void;
+  inline?: boolean;
 }
 
 export const ArchitectureDocsModal: React.FC<ArchitectureDocsModalProps> = ({
-  isOpen,
+  isOpen = true,
   onClose,
+  onBackToQueue,
+  inline = false,
 }) => {
-  if (!isOpen) return null;
+  if (!isOpen && !inline) return null;
 
-  return (
-    <div id="architecture-docs-backdrop" className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div id="architecture-docs-modal" className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden my-auto">
-        {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-slate-100 bg-white flex items-center justify-between">
-          <div className="flex items-center space-x-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-sm shadow-indigo-200">
-              <BookOpen className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="font-bold text-slate-800 text-base">Razorpay AI Revenue Recovery Architecture</h2>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">Track 03 • Failed-Subscription Recovery Agent System Specification</p>
-            </div>
+  const handleReturn = () => {
+    if (onBackToQueue) {
+      onBackToQueue();
+    } else if (onClose) {
+      onClose();
+    }
+  };
+
+  const content = (
+    <div id="architecture-docs-container" className={`bg-white border border-slate-200 shadow-sm flex flex-col overflow-hidden ${inline ? 'rounded-2xl w-full' : 'rounded-3xl shadow-2xl w-full max-w-3xl max-h-[92vh] my-auto'}`}>
+      {/* Top Navigation Bar for Inline / Modal */}
+      {inline && (
+        <div className="px-5 pt-3.5 pb-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={handleReturn}
+            className="inline-flex items-center text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors group"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 mr-1 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back to Recovery Queue</span>
+          </button>
+          <span className="text-[11px] font-semibold text-slate-400">Architecture Documentation Mode</span>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="p-5 sm:p-6 border-b border-slate-100 bg-white flex items-center justify-between shrink-0">
+        <div className="flex items-center space-x-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-sm shadow-indigo-200">
+            <BookOpen className="w-5 h-5" />
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors">
+          <div>
+            <h2 className="font-bold text-slate-800 text-base">Razorpay AI Revenue Recovery Architecture</h2>
+            <p className="text-xs text-slate-400 font-medium mt-0.5">Track 03 • Failed-Subscription Recovery Agent System Specification</p>
+          </div>
+        </div>
+        {(onClose || onBackToQueue) && (
+          <button 
+            onClick={handleReturn} 
+            title="Close / Back"
+            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
-        </div>
+        )}
+      </div>
 
-        {/* Body */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-6 text-xs text-slate-600 leading-relaxed bg-[#f8fafc]">
+      {/* Body */}
+      <div className={`p-6 space-y-6 text-xs text-slate-600 leading-relaxed bg-[#f8fafc] ${inline ? '' : 'overflow-y-auto flex-1'}`}>
           {/* Section 1: Problem & Approach */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
             <h3 className="font-bold text-slate-800 text-sm flex items-center space-x-2">
@@ -97,14 +129,14 @@ export const ArchitectureDocsModal: React.FC<ArchitectureDocsModalProps> = ({
               <Terminal className="w-4 h-4 text-emerald-600" />
               <span>3. Razorpay Error Taxonomy & Response Matrix</span>
             </h3>
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
-              <table className="w-full text-left border-collapse text-xs">
+            <div className="border border-slate-200 rounded-xl overflow-x-auto">
+              <table className="w-full min-w-[560px] text-left border-collapse text-xs">
                 <thead className="bg-slate-50 border-b border-slate-100 font-bold text-slate-400 uppercase tracking-wider text-[11px]">
                   <tr>
-                    <th className="py-2.5 px-3.5">Decline Code</th>
-                    <th className="py-2.5 px-3.5">Source</th>
-                    <th className="py-2.5 px-3.5">Zone</th>
-                    <th className="py-2.5 px-3.5">Optimal Action</th>
+                    <th className="py-2.5 px-3.5 whitespace-nowrap">Decline Code</th>
+                    <th className="py-2.5 px-3.5 whitespace-nowrap">Source</th>
+                    <th className="py-2.5 px-3.5 whitespace-nowrap">Zone</th>
+                    <th className="py-2.5 px-3.5 whitespace-nowrap">Optimal Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-mono text-xs">
@@ -145,12 +177,23 @@ export const ArchitectureDocsModal: React.FC<ArchitectureDocsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-slate-100 bg-white flex items-center justify-end">
-          <button onClick={onClose} className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-colors shadow-sm">
-            Got it
-          </button>
-        </div>
+        {!inline && onClose && (
+          <div className="p-5 border-t border-slate-100 bg-white flex items-center justify-end">
+            <button onClick={onClose} className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-colors shadow-sm">
+              Got it
+            </button>
+          </div>
+        )}
       </div>
+  );
+
+  if (inline) {
+    return content;
+  }
+
+  return (
+    <div id="architecture-docs-backdrop" className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+      {content}
     </div>
   );
 };
