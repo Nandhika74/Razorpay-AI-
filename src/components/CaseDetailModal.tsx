@@ -22,6 +22,9 @@ import {
   Globe,
   Terminal,
   Code2,
+  LayoutGrid,
+  User,
+  CreditCard,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { RecoveryCase, SupportedLanguage } from '../types';
@@ -78,7 +81,7 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
 }) => {
   if (!caseItem) return null;
 
-  const [activeTab, setActiveTab] = useState<'decision_tree' | 'ai_outreach' | 'audit_trail'>('decision_tree');
+  const [activeTab, setActiveTab] = useState<'workspace' | 'audit_trail'>('workspace');
   const [outreachChannel, setOutreachChannel] = useState<'whatsapp' | 'email' | 'sms'>('whatsapp');
   const [outreachLanguage, setOutreachLanguage] = useState<SupportedLanguage>(
     caseItem.customer.preferredLanguage || 'english'
@@ -273,7 +276,7 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
 
   return (
     <div id="case-detail-modal-backdrop" className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div id="case-detail-modal" className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden my-auto">
+      <div id="case-detail-modal" className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-[1420px] max-h-[94vh] flex flex-col overflow-hidden my-auto">
         {/* Modal Header */}
         <div className="p-5 sm:p-6 border-b border-slate-100 bg-white flex items-center justify-between">
           <div className="flex items-center space-x-3.5">
@@ -342,33 +345,21 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
         {/* Tab Navigation */}
         <div className="border-b border-slate-100 px-6 flex space-x-8 text-xs font-bold bg-white">
           <button
-            id="tab-btn-decision-tree"
-            onClick={() => setActiveTab('decision_tree')}
-            className={`py-3.5 border-b-2 transition-colors flex items-center space-x-2 ${
-              activeTab === 'decision_tree'
+            id="tab-btn-workspace"
+            onClick={() => setActiveTab('workspace')}
+            className={`py-3.5 border-b-2 transition-colors flex items-center space-x-2 cursor-pointer ${
+              activeTab === 'workspace'
                 ? 'border-indigo-600 text-indigo-600 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-700 font-semibold'
             }`}
           >
-            <ShieldCheck className="w-4 h-4" />
-            <span>4-Stage Decision & Compliance</span>
-          </button>
-          <button
-            id="tab-btn-ai-outreach"
-            onClick={() => setActiveTab('ai_outreach')}
-            className={`py-3.5 border-b-2 transition-colors flex items-center space-x-2 ${
-              activeTab === 'ai_outreach'
-                ? 'border-indigo-600 text-indigo-600 font-bold'
-                : 'border-transparent text-slate-400 hover:text-slate-700 font-semibold'
-            }`}
-          >
-            <Sparkles className="w-4 h-4 text-purple-600" />
-            <span>AI Smart Outreach Synthesizer</span>
+            <LayoutGrid className="w-4 h-4 text-indigo-600" />
+            <span>Recovery Workspace (Responsive Grid)</span>
           </button>
           <button
             id="tab-btn-audit-trail"
             onClick={() => setActiveTab('audit_trail')}
-            className={`py-3.5 border-b-2 transition-colors flex items-center space-x-2 ${
+            className={`py-3.5 border-b-2 transition-colors flex items-center space-x-2 cursor-pointer ${
               activeTab === 'audit_trail'
                 ? 'border-indigo-600 text-indigo-600 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-700 font-semibold'
@@ -444,199 +435,278 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
             </div>
           )}
 
-          {/* TAB 1: DECISION TREE & COMPLIANCE */}
-          {activeTab === 'decision_tree' && (
-            <div className="space-y-5">
-              {/* Context Diagnostic Summary: Baseline vs Failure */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Left: Customer Baseline */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-3">
-                    Customer Baseline Context (Stage 1)
+          {/* RESPONSIVE GRID WORKSPACE: 3 DISTINCT, CLEAN CARDS */}
+          {activeTab === 'workspace' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+              {/* ================= CARD 1: CUSTOMER PROFILE & DIAGNOSTIC CONTEXT ================= */}
+              <div className="lg:col-span-12 xl:col-span-4 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
+                {/* Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-sm">Customer Profile & Diagnosis</h3>
+                      <p className="text-[11px] text-slate-400 font-medium">Stage 1 & 2 Baseline Intelligence</p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    caseItem.customer.riskTier === 'low_risk_vip'
+                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                      : caseItem.customer.riskTier === 'high_churn_risk'
+                      ? 'bg-rose-50 text-rose-800 border-rose-200'
+                      : 'bg-slate-50 text-slate-700 border-slate-200'
+                  }`}>
+                    {caseItem.customer.riskTier === 'low_risk_vip' ? '👑 VIP Account' : caseItem.customer.riskTier === 'high_churn_risk' ? '⚠️ High Churn Risk' : 'Standard Account'}
                   </span>
-                  <div className="space-y-2.5 text-xs">
-                    <div className="flex justify-between py-1.5 border-b border-slate-100">
-                      <span className="text-slate-400 font-medium">Historical Reliability:</span>
-                      <span className="font-bold text-slate-800">{Math.round(caseItem.customer.historicalSuccessRate * 100)}% Success Rate</span>
-                    </div>
-                    <div className="flex justify-between py-1.5 border-b border-slate-100">
-                      <span className="text-slate-400 font-medium">Tenure & History:</span>
-                      <span className="font-bold text-slate-800">{caseItem.customer.tenureMonths} mos ({caseItem.customer.successfulHistoricalPayments}/{caseItem.customer.totalHistoricalPayments} paid)</span>
-                    </div>
-                    <div className="py-1.5 border-b border-slate-100">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400 font-medium">Surprise Index:</span>
-                        <span className={`font-bold ${caseItem.diagnosis.isAnomalousBlip ? 'text-amber-700' : 'text-slate-700'}`}>
-                          {Math.round(caseItem.diagnosis.surpriseScore * 100)}% {caseItem.diagnosis.isAnomalousBlip ? '(Isolated Blip)' : '(Chronic Friction)'}
-                        </span>
-                      </div>
-                      <div className="mt-1 font-mono text-[10px] text-slate-500 bg-slate-50 p-1.5 rounded border border-slate-100">
-                        {caseItem.classification.isHardDecline ? (
-                          <span className="text-rose-600 font-semibold">0.0 (Hard Decline Override)</span>
-                        ) : (
-                          <span>
-                            {caseItem.customer.historicalSuccessRate.toFixed(2)} × min({caseItem.customer.tenureMonths}/12, 1) × (1 - {Math.max(0, caseItem.customer.totalHistoricalPayments - caseItem.customer.successfulHistoricalPayments)}/10) = <strong className="text-slate-700">{caseItem.diagnosis.surpriseScore.toFixed(2)}</strong>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex justify-between py-1.5">
-                      <span className="text-slate-400 font-medium">Card & Mandate:</span>
-                      <span className="font-mono font-bold text-slate-700">{caseItem.customer.cardNetwork} •••• {caseItem.customer.cardLast4}</span>
-                    </div>
+                </div>
+
+                {/* Plan & Subscription Specs */}
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/70 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 font-medium">Subscription Plan:</span>
+                    <span className="font-bold text-slate-800">{caseItem.customer.planName}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 font-medium">Recurring Value:</span>
+                    <span className="font-bold text-indigo-700 font-mono">₹{caseItem.customer.amountINR.toLocaleString('en-IN')}/mo</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 font-medium">Mandate ID:</span>
+                    <span className="font-mono text-slate-700 text-[11px]">{caseItem.customer.mandateId}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 font-medium">Card Instrument:</span>
+                    <span className="font-bold text-slate-700 flex items-center gap-1 font-mono text-[11px]">
+                      <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{caseItem.customer.cardNetwork} •••• {caseItem.customer.cardLast4}</span>
+                    </span>
                   </div>
                 </div>
 
-                {/* Right: Razorpay Decline Event */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-3">
-                    Raw Razorpay Decline Signal (Stage 2)
-                  </span>
-                  <div className="space-y-2.5 text-xs">
-                    <div className="flex justify-between py-1.5 border-b border-slate-100">
-                      <span className="text-slate-400 font-medium">Error Reason:</span>
-                      <span className="font-bold text-rose-700 font-mono">{caseItem.failureEvent.decline.reason}</span>
-                    </div>
-                    <div className="flex justify-between py-1.5 border-b border-slate-100">
-                      <span className="text-slate-400 font-medium">Razorpay Error Code:</span>
-                      <span className="font-mono text-slate-800 text-xs font-semibold">{caseItem.failureEvent.decline.code}</span>
-                    </div>
-                    <div className="flex justify-between py-1.5 border-b border-slate-100">
-                      <span className="text-slate-400 font-medium">Triage Zone:</span>
-                      <span className="font-bold text-indigo-600">{caseItem.classification.zone}</span>
-                    </div>
-                    <div className="flex justify-between py-1.5">
-                      <span className="text-slate-400 font-medium">Hard Decline Stop:</span>
-                      <span className={`font-bold ${caseItem.classification.isHardDecline ? 'text-rose-600' : 'text-emerald-600'}`}>
-                        {caseItem.classification.isHardDecline ? 'YES (0 Retries Allowed)' : 'NO (Recoverable Soft Decline)'}
+                {/* Historical Reliability & Track Record */}
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-slate-500 font-medium">Historical Reliability:</span>
+                    <span className="font-bold text-slate-800">
+                      {Math.round(caseItem.customer.historicalSuccessRate * 100)}% ({caseItem.customer.successfulHistoricalPayments}/{caseItem.customer.totalHistoricalPayments} paid)
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        caseItem.customer.historicalSuccessRate >= 0.85
+                          ? 'bg-emerald-500'
+                          : caseItem.customer.historicalSuccessRate >= 0.65
+                          ? 'bg-amber-500'
+                          : 'bg-rose-500'
+                      }`}
+                      style={{ width: `${Math.round(caseItem.customer.historicalSuccessRate * 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[11px] text-slate-400">
+                    <span>Customer Tenure: <strong className="text-slate-700">{caseItem.customer.tenureMonths} months</strong></span>
+                    <span>Cohort Split: <strong className="text-slate-700 uppercase">{caseItem.batchSplit}</strong></span>
+                  </div>
+                </div>
+
+                {/* Surprise Index Breakdown */}
+                <div className="p-3.5 rounded-xl bg-amber-50/50 border border-amber-100 space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600 font-bold flex items-center gap-1">
+                      <span>Surprise Index:</span>
+                      <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                        caseItem.diagnosis.isAnomalousBlip ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-700'
+                      }`}>
+                        {caseItem.diagnosis.isAnomalousBlip ? 'Isolated Blip' : 'Chronic Friction'}
                       </span>
+                    </span>
+                    <span className="font-bold text-amber-900 font-mono text-sm">
+                      {Math.round(caseItem.diagnosis.surpriseScore * 100)}%
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-amber-900/90 leading-relaxed font-mono bg-white/80 p-2 rounded border border-amber-200/50">
+                    {caseItem.classification.isHardDecline ? (
+                      <span className="text-rose-600 font-semibold">0.0 (Hard Decline Override)</span>
+                    ) : (
+                      <span>
+                        {caseItem.customer.historicalSuccessRate.toFixed(2)} × min({caseItem.customer.tenureMonths}/12, 1) × (1 - {Math.max(0, caseItem.customer.totalHistoricalPayments - caseItem.customer.successfulHistoricalPayments)}/10) = <strong className="text-amber-950 font-bold">{caseItem.diagnosis.surpriseScore.toFixed(2)}</strong>
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Raw Razorpay Decline Signal */}
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
+                  <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>Raw Decline Signal (Stage 2)</span>
+                    <span className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
+                      caseItem.classification.isHardDecline ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {caseItem.classification.isHardDecline ? 'Hard Stop' : 'Soft Decline'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-200/60">
+                    <span className="text-slate-500 font-medium">Decline Reason:</span>
+                    <span className="font-bold text-rose-700 font-mono text-[11px]">{caseItem.failureEvent.decline.reason}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-200/60">
+                    <span className="text-slate-500 font-medium">Gateway Code:</span>
+                    <span className="font-mono text-slate-700">{caseItem.failureEvent.decline.code}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-slate-500 font-medium">Triage Zone:</span>
+                    <span className="font-bold text-indigo-600">{caseItem.classification.zone}</span>
+                  </div>
+                </div>
+
+                {/* Diagnosis Summary Callout */}
+                <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 text-indigo-950 text-xs flex items-start space-x-2.5">
+                  <div className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">
+                    i
+                  </div>
+                  <p className="text-[11px] text-indigo-900 leading-relaxed font-medium">
+                    {caseItem.diagnosis.explanation}
+                  </p>
+                </div>
+              </div>
+
+              {/* ================= CARD 2: RECOVERY ACTIONS & SCHEME COMPLIANCE ================= */}
+              <div className="lg:col-span-6 xl:col-span-4 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
+                {/* Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold">
+                      <Zap className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-sm">Recovery Pipeline & Actions</h3>
+                      <p className="text-[11px] text-slate-400 font-medium">Stage 3 & 4 Bounded Execution</p>
                     </div>
                   </div>
-                </div>
-              </div>
-
-              {/* Stage 1 Diagnosis Reasoning Callout */}
-              <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-xs text-indigo-950 flex items-start space-x-3 shadow-2xs">
-                <div className="w-5 h-5 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-xs shrink-0 mt-0.5">
-                  i
-                </div>
-                <div>
-                  <span className="font-bold text-indigo-900 block mb-0.5">Context Diagnosis Summary:</span>
-                  <p className="text-indigo-800 leading-relaxed font-medium">{caseItem.diagnosis.explanation}</p>
-                </div>
-              </div>
-
-              {/* Stage 3 & 4 Dual Outputs + Network Ceilings */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Likelihood */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 text-center shadow-sm">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                    Recovery Likelihood
+                  <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200">
+                    {caseItem.status}
                   </span>
-                  <div className="text-3xl font-black text-emerald-600 my-1">
-                    {caseItem.trendScore.recoveryLikelihoodPct}%
+                </div>
+
+                {/* Key Metric Bento Row: Likelihood, Rank, Network Retries */}
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Likelihood</span>
+                    <div className="text-xl font-black text-emerald-600 mt-0.5">
+                      {caseItem.trendScore.recoveryLikelihoodPct}%
+                    </div>
+                    <span className="text-[9px] text-slate-500 block truncate mt-0.5">
+                      {caseItem.trendScore.recoveryLikelihoodPct >= 80 ? 'High Prob.' : 'Moderate'}
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-600 font-medium">
-                    {isHardDecline ? (
-                      'Terminal 0% (Hard Decline Lock)'
-                    ) : caseItem.classification.zone === 'RETRY_SOON' ? (
-                      `${caseItem.diagnosis.isAnomalousBlip ? '92% (Blip Base)' : '78% (Gateway Base)'}${caseItem.customer.riskTier === 'low_risk_vip' ? ' + 8% (VIP)' : caseItem.customer.riskTier === 'high_churn_risk' ? ' - 18% (Risk)' : ''}`
-                    ) : caseItem.classification.zone === 'RETRY_LATER' ? (
-                      `${caseItem.diagnosis.isAnomalousBlip ? '84% (Blip Base)' : '58% (Liquidity Base)'}${caseItem.customer.riskTier === 'low_risk_vip' ? ' + 8% (VIP)' : caseItem.customer.riskTier === 'high_churn_risk' ? ' - 18% (Risk)' : ''}`
-                    ) : (
-                      `${caseItem.customer.tenureMonths > 6 ? '74% (Tenured)' : '62% (New)'}${caseItem.customer.riskTier === 'low_risk_vip' ? ' + 8% (VIP)' : caseItem.customer.riskTier === 'high_churn_risk' ? ' - 18% (Risk)' : ''}`
-                    )}
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Zone Baseline + Risk Tier Modifier</p>
-                </div>
 
-                {/* Priority Rank & Triage Score */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 text-center shadow-sm">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                    Queue Priority Rank & Triage Score
-                  </span>
-                  
-                  {/* Big Rank Badge + Composite Score */}
-                  <div className="flex items-center justify-center gap-2 my-1">
-                    <span className={`inline-flex items-center px-3 py-0.5 rounded-xl font-mono text-2xl font-black border ${
-                      priorityRank === 1 ? 'bg-amber-100 text-amber-900 border-amber-300' :
-                      priorityRank <= 3 ? 'bg-indigo-50 text-indigo-800 border-indigo-200' :
-                      'bg-slate-100 text-slate-800 border-slate-200'
-                    }`}>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Queue Rank</span>
+                    <div className="text-xl font-black text-indigo-700 mt-0.5">
                       #{priorityRank}
-                    </span>
-                    <span className="text-xl font-bold text-slate-400">
-                      ({caseItem.trendScore.recoveryPriorityScore} pts)
+                    </div>
+                    <span className="text-[9px] text-slate-500 block truncate mt-0.5">
+                      {caseItem.trendScore.recoveryPriorityScore} pts
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-slate-700 font-semibold">
-                    ₹{caseItem.customer.amountINR.toLocaleString('en-IN')} · {Math.min(60, Math.round((caseItem.customer.amountINR / 8000) * 60))}pts Value + {caseItem.classification.isHardDecline ? 0 : Math.min(40, Math.round((14 - Math.max(1, caseItem.trendScore.daysRemainingInDunning)) * (40 / 13)))}pts Urgency
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
-                    Queue order = Revenue at Stake × Likelihood ({caseItem.trendScore.recoveryLikelihoodPct}%) × Urgency
-                  </p>
-                </div>
-
-                {/* Network Compliance Meter */}
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 text-center shadow-sm">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                    {caseItem.compliance.network} 30D Limit*
-                  </span>
-                  <div className={`text-3xl font-black my-1 ${isHardDecline ? 'text-rose-600' : caseItem.compliance.isCeilingReached ? 'text-amber-600' : 'text-slate-800'}`}>
-                    {caseItem.compliance.attemptCount} / {caseItem.compliance.maxAllowedAttempts}
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{caseItem.compliance.network} Limit</span>
+                    <div className={`text-xl font-black mt-0.5 ${isHardDecline ? 'text-rose-600' : 'text-slate-800'}`}>
+                      {caseItem.compliance.attemptCount}/{caseItem.compliance.maxAllowedAttempts}
+                    </div>
+                    <span className="text-[9px] text-slate-500 block truncate mt-0.5">
+                      {isHardDecline ? '0 allowed' : `${caseItem.compliance.attemptsRemaining} left`}
+                    </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 font-medium">
-                    {isHardDecline 
-                      ? 'Hard Stop (0 retries permitted)'
-                      : caseItem.compliance.isCeilingReached 
-                      ? 'Ceiling reached — Escalated to CS' 
-                      : `${caseItem.compliance.attemptsRemaining} retry attempts remaining`}
-                  </p>
-                  <p className="text-[9.5px] text-slate-400 italic mt-1 leading-tight">
-                    *Per published network merchant guidelines
-                  </p>
-                </div>
-              </div>
-
-              {/* Action Simulator Panel */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-slate-800 text-xs uppercase tracking-widest">
-                    Pipeline Execution Controls
-                  </h3>
-                  <span className="text-xs font-mono text-slate-400 font-medium">
-                    Current Status: <span className="font-bold text-slate-800">{caseItem.status}</span>
-                  </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Network 30D Retry Progress Meter */}
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-slate-600 font-semibold">{caseItem.compliance.network} 30-Day Retry Ceiling:</span>
+                    <span className="font-mono font-bold text-slate-800">{caseItem.compliance.attemptCount} of {caseItem.compliance.maxAllowedAttempts} used</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        caseItem.compliance.isCeilingReached
+                          ? 'bg-amber-500'
+                          : isHardDecline
+                          ? 'bg-rose-500'
+                          : 'bg-indigo-600'
+                      }`}
+                      style={{ width: `${Math.min(100, (caseItem.compliance.attemptCount / caseItem.compliance.maxAllowedAttempts) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500">
+                    {isHardDecline
+                      ? 'Stolen / cancelled instrument. All retries blocked to protect MID from VMMP penalties.'
+                      : caseItem.compliance.isCeilingReached
+                      ? 'Ceiling reached. Automatic retries halted to prevent bank penalty fees.'
+                      : `${caseItem.compliance.attemptsRemaining} compliant re-authorization attempts remaining in rolling 30D window.`}
+                  </p>
+                </div>
+
+                {/* Hard Decline Warning if active */}
+                {isHardDecline && (
+                  <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-1">
+                    <div className="flex items-center space-x-1.5 font-bold">
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>MAC 21 / Hard Decline Circuit Breaker</span>
+                    </div>
+                    <p className="text-[11px] text-rose-800 leading-relaxed font-medium">
+                      Permanent instrument deactivation. Only replacement card onboarding allowed.
+                    </p>
+                  </div>
+                )}
+
+                {/* Recovery Pipeline Action Buttons */}
+                <div className="space-y-2 pt-1">
+                  <span className="text-xs font-bold text-slate-700 block uppercase tracking-wider">Execution Controls</span>
+
                   {/* Action 1: Smart Retry */}
                   <button
                     id="btn-action-smart-retry"
                     onClick={() => handleAction('SMART_RETRY')}
                     disabled={isLoadingAction || caseItem.compliance.isCeilingReached || isHardDecline || caseItem.status === 'RECOVERED'}
-                    className="p-4 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-900 font-bold text-xs transition-colors flex flex-col items-center justify-center space-y-1.5 disabled:opacity-40 disabled:cursor-not-allowed text-center shadow-2xs"
+                    className="w-full p-3 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-950 font-bold text-xs transition-colors flex items-center justify-between disabled:opacity-40 disabled:cursor-not-allowed text-left shadow-2xs cursor-pointer"
                   >
-                    <Zap className="w-5 h-5 text-indigo-600" />
-                    <span>Execute Smart Retry</span>
-                    <span className="text-[10px] text-indigo-600 font-normal">
-                      {isHardDecline ? '🛑 Blocked (Hard Decline)' : 'Silent gateway / scheme re-auth'}
-                    </span>
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                        <Zap className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="block font-bold">Execute Smart Retry</span>
+                        <span className="text-[10.5px] text-indigo-700 font-normal block">
+                          {isHardDecline ? '🛑 Blocked (Hard Decline)' : 'Silent gateway / scheme re-authorization'}
+                        </span>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-indigo-400 shrink-0" />
                   </button>
 
-                  {/* Action 2: Simulate Customer 1-Click Link Pay */}
+                  {/* Action 2: Simulate Customer 1-Click Pay */}
                   <button
                     id="btn-action-simulate-customer-pay"
                     onClick={() => handleAction('SIMULATE_CUSTOMER_PAY')}
                     disabled={isLoadingAction || isHardDecline || caseItem.status === 'RECOVERED'}
-                    className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-900 font-bold text-xs transition-colors flex flex-col items-center justify-center space-y-1.5 disabled:opacity-40 disabled:cursor-not-allowed text-center shadow-2xs"
+                    className="w-full p-3 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-950 font-bold text-xs transition-colors flex items-center justify-between disabled:opacity-40 disabled:cursor-not-allowed text-left shadow-2xs cursor-pointer"
                   >
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                    <span>Simulate 1-Click Pay</span>
-                    <span className="text-[10px] text-emerald-700 font-normal">
-                      {isHardDecline ? '🛑 Blocked (Invalid Instrument)' : 'Customer authorizes via WhatsApp/SMS'}
-                    </span>
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="block font-bold">Simulate 1-Click Payment</span>
+                        <span className="text-[10.5px] text-emerald-700 font-normal block">
+                          {isHardDecline ? '🛑 Blocked (Invalid Instrument)' : 'Customer authorizes debit via link'}
+                        </span>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-emerald-400 shrink-0" />
                   </button>
 
                   {/* Action 3: Human CS Escalation */}
@@ -644,27 +714,52 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
                     id="btn-action-escalate-human"
                     onClick={() => handleAction('ESCALATE_HUMAN')}
                     disabled={isLoadingAction || caseItem.status === 'HANDED_OFF_CEILING' || caseItem.status === 'RECOVERED'}
-                    className={`p-4 rounded-xl border font-bold text-xs transition-colors flex flex-col items-center justify-center space-y-1.5 disabled:opacity-50 disabled:cursor-not-allowed text-center shadow-2xs ${
+                    className={`w-full p-3 rounded-xl border text-xs font-bold transition-colors flex items-center justify-between disabled:opacity-50 disabled:cursor-not-allowed text-left shadow-2xs cursor-pointer ${
                       isHardDecline
                         ? 'border-indigo-500 bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200'
-                        : 'border-amber-200 bg-amber-50/70 hover:bg-amber-100 text-amber-900'
+                        : 'border-amber-200 bg-amber-50/70 hover:bg-amber-100 text-amber-950'
                     }`}
                   >
-                    <UserCheck className={`w-5 h-5 ${isHardDecline ? 'text-white' : 'text-amber-700'}`} />
-                    <span>{isHardDecline ? 'Escalate for Card Swap' : 'Escalate to CS Rep'}</span>
-                    <span className={`text-[10px] font-normal ${isHardDecline ? 'text-indigo-100' : 'text-amber-800'}`}>
-                      {isHardDecline ? 'Compliant handoff for new mandate' : 'Clean handoff without retry spam'}
-                    </span>
+                    <div className="flex items-center space-x-2.5">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isHardDecline ? 'bg-indigo-800 text-white' : 'bg-amber-600 text-white'}`}>
+                        <UserCheck className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="block font-bold">{isHardDecline ? 'Escalate for Card Swap' : 'Escalate to CS Rep'}</span>
+                        <span className={`text-[10.5px] font-normal block ${isHardDecline ? 'text-indigo-100' : 'text-amber-800'}`}>
+                          {isHardDecline ? 'Compliant handoff for new mandate' : 'Clean handoff without retry spam'}
+                        </span>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 opacity-70 shrink-0" />
+                  </button>
+
+                  {/* Interactive Payment Checkout Sandbox Trigger */}
+                  <button
+                    id="btn-test-customer-portal"
+                    type="button"
+                    onClick={() => setIsCustomerPortalOpen(true)}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Launch Customer Payment Simulation Portal</span>
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
 
-          {/* TAB 2: AI OUTREACH GENERATOR */}
-          {activeTab === 'ai_outreach' && (
-            <div className="space-y-4">
-              <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+                {/* Scheme & RBI Rules Note */}
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 space-y-1">
+                  <div className="font-bold text-slate-700 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Scheme & RBI Compliance Guardrails</span>
+                  </div>
+                  <p className="text-[10.5px] leading-relaxed">
+                    Enforces RBI e-mandate pre-debit rules (48h advance notice) and Visa/Mastercard 30-day bounded retry caps. Hard decline instruments are permanently locked against card retries.
+                  </p>
+                </div>
+              </div>
+
+              {/* ================= CARD 3: OUTREACH & COMMUNICATION PREVIEW ================= */}
+              <div className="lg:col-span-6 xl:col-span-4 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm space-y-4">
                 {/* Header & Gemini Action */}
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-slate-100">
                   <div className="space-y-1">
