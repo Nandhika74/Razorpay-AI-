@@ -27,6 +27,18 @@ export interface RazorpayDeclineInfo {
   isTestMode?: boolean;
 }
 
+export type SupportedLanguage =
+  | 'english'
+  | 'tamil'
+  | 'telugu'
+  | 'kannada'
+  | 'malayalam'
+  | 'marathi'
+  | 'bengali'
+  | 'gujarati'
+  | 'hindi'
+  | 'hinglish';
+
 export interface CustomerProfile {
   id: string;
   name: string;
@@ -46,7 +58,7 @@ export interface CustomerProfile {
   historicalSuccessRate: number; // 0.0 to 1.0
   lastSuccessDate: string;
   typicalSalaryDay: number; // e.g. 1st or 30th of month
-  preferredLanguage?: 'english' | 'hindi' | 'hinglish';
+  preferredLanguage?: SupportedLanguage;
   riskTier: 'low_risk_vip' | 'stable' | 'moderate' | 'high_churn_risk';
 }
 
@@ -105,7 +117,7 @@ export interface AuditEntry {
 
 export interface AIOutreachDraft {
   channel: 'whatsapp' | 'email' | 'sms';
-  language: 'english' | 'hindi' | 'hinglish';
+  language: SupportedLanguage;
   subject?: string;
   messageBody: string;
   callToActionUrl: string;

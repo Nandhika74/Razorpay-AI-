@@ -1,4 +1,4 @@
-import { RecoveryCase, TestCardPreset, AuditEntry, CustomerProfile, RazorpayDeclineInfo } from '../types';
+import { RecoveryCase, TestCardPreset, AuditEntry, CustomerProfile, RazorpayDeclineInfo, SupportedLanguage } from '../types';
 import {
   runStage1Diagnosis,
   runStage2Classification,
@@ -105,6 +105,58 @@ export interface RawCaseSpec {
   step: 'payment_authorization' | 'payment_authentication' | 'mandate_execution' | 'card_verification';
   daysRemaining: number;
   typicalSalaryDay?: number;
+  preferredLanguage?: SupportedLanguage;
+}
+
+export function resolveCustomerLanguage(spec: RawCaseSpec): SupportedLanguage {
+  if (spec.preferredLanguage) return spec.preferredLanguage;
+  const name = spec.name.toLowerCase();
+  const phone = spec.phone;
+  // Tamil Nadu (Chennai, Coimbatore tech hubs)
+  if (
+    name.includes('subbaraj') ||
+    name.includes('sundaram') ||
+    name.includes('iyer') ||
+    name.includes('venkatesh') ||
+    phone.includes('98400') ||
+    phone.includes('98410')
+  ) {
+    return 'tamil';
+  }
+  // Kerala (Kochi, Trivandrum)
+  if (name.includes('namboodiri') || name.includes('menon') || phone.includes('94470') || phone.includes('94472')) {
+    return 'malayalam';
+  }
+  // Karnataka (Bengaluru tech capital)
+  if (name.includes('hegde') || name.includes('gowda') || name.includes('shetty') || phone.includes('98450') || phone.includes('98451')) {
+    return 'kannada';
+  }
+  // Maharashtra (Mumbai financial center, Pune SaaS)
+  if (name.includes('joshi') || name.includes('mandhana') || name.includes('patil') || name.includes('kulkarni') || phone.includes('98220') || phone.includes('98223')) {
+    return 'marathi';
+  }
+  // West Bengal (Kolkata creative & publishing hubs)
+  if (name.includes('sengupta') || name.includes('mukherjee') || name.includes('roy') || name.includes('banerjee') || phone.includes('98301') || phone.includes('98302') || phone.includes('98312')) {
+    return 'bengali';
+  }
+  // Gujarat (Ahmedabad, Surat commercial centers)
+  if (name.includes('bhatt') || name.includes('patel') || name.includes('shah') || phone.includes('98200')) {
+    return 'gujarati';
+  }
+  // Andhra & Telangana (Hyderabad IT corridors)
+  if (name.includes('reddy') || name.includes('rao') || name.includes('naidu')) {
+    return 'telugu';
+  }
+  // North India (Delhi NCR, UP, Rajasthan)
+  if (name.includes('sharma') || name.includes('chawla') || name.includes('mathur') || name.includes('goel')) {
+    return 'hindi';
+  }
+  // Conversational Hinglish for media/creators
+  if (name.includes('bhagat')) {
+    return 'hinglish';
+  }
+  // Default to English (Global / Tech Standard)
+  return 'english';
 }
 
 // 25 Design Cohort Cases for calibration and rule tuning
@@ -1050,12 +1102,7 @@ function buildEvaluatedCase(spec: RawCaseSpec, split: 'design' | 'held_out'): Re
     historicalSuccessRate: spec.successRate,
     lastSuccessDate: '2026-07-28T00:00:00.000Z',
     typicalSalaryDay: spec.typicalSalaryDay || 1,
-    preferredLanguage:
-      spec.id.endsWith('1') || spec.id.endsWith('4') || spec.id.endsWith('7')
-        ? 'hindi'
-        : spec.id.endsWith('2') || spec.id.endsWith('5') || spec.id.endsWith('8')
-        ? 'hinglish'
-        : 'english',
+    preferredLanguage: resolveCustomerLanguage(spec),
     riskTier: spec.tenure >= 12 && spec.successRate >= 0.92 ? 'low_risk_vip' : spec.successRate >= 0.85 ? 'stable' : 'moderate',
   };
 

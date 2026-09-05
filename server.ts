@@ -617,9 +617,16 @@ Failure Reason: ${caseItem.failureEvent.decline.reason} (${caseItem.failureEvent
 Customer Baseline: ${caseItem.customer.tenureMonths} months tenure, ${Math.round(caseItem.customer.historicalSuccessRate * 100)}% historical success
 Zone: ${caseItem.classification.zone}
 Channel: ${channel || 'whatsapp'}
-Language: ${language || 'english'} 
-- If 'hindi': Write polite, respectful conversational Hindi using Devanagari script (e.g. "नमस्ते ${caseItem.customer.name}, आपकी ${caseItem.customer.planName} सदस्यता का स्वतः भुगतान...").
-- If 'hinglish': Write natural, professional conversational Romanized Hindi-English (e.g. "Namaste ${caseItem.customer.name}! Aapka ${caseItem.customer.planName} subscription payment momentarily complete nahi ho paya. Tap karke 1-click me refresh karein:").
+Language: ${language || 'english'}
+- If 'tamil': Write polite, professional Tamil in Tamil script (வணக்கம்...).
+- If 'telugu': Write polite, professional Telugu in Telugu script (నమస్కారం...).
+- If 'kannada': Write polite, professional Kannada in Kannada script (ನಮಸ್ಕಾರ...).
+- If 'malayalam': Write polite, professional Malayalam in Malayalam script (നമസ്കാരം...).
+- If 'marathi': Write polite, professional Marathi in Devanagari script (नमस्कार...).
+- If 'bengali': Write polite, professional Bengali in Bengali script (নমস্কার...).
+- If 'gujarati': Write polite, professional Gujarati in Gujarati script (નમસ્તે...).
+- If 'hindi': Write polite, respectful conversational Hindi in Devanagari script (नमस्ते...).
+- If 'hinglish': Write natural, conversational Romanized Hindi-English (Namaste...).
 - If 'english': Write clear, concise, professional English.
 
 Keep it concise, friendly, compliant with RBI recurring mandate guidelines, and include the 1-click update link: https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}`;
@@ -630,19 +637,41 @@ Keep it concise, friendly, compliant with RBI recurring mandate guidelines, and 
         });
 
         generatedBody = response.text || '';
-        personalizedReasoning = `Synthesized via Google Gemini 3.7 Flash using ${caseItem.customer.tenureMonths}-month customer baseline context, ${language || 'english'} linguistic adaptation, and ${caseItem.failureEvent.decline.reason} error taxonomy.`;
+        personalizedReasoning = `Synthesized via Google Gemini 3.7 Flash using ${caseItem.customer.tenureMonths}-month customer baseline context, ${language || 'english'} regional linguistic adaptation, and ${caseItem.failureEvent.decline.reason} error taxonomy.`;
       } catch (err: any) {
-        console.warn('Gemini generation failed, using intelligent template:', err);
+        console.warn('Gemini generation failed, using intelligent regional template:', err);
       }
     }
 
     if (!generatedBody) {
-      if (language === 'hindi') {
-        generatedBody = `नमस्ते ${caseItem.customer.name}! 🙏\n\nआपकी ${caseItem.customer.planName} सदस्यता (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) का स्वतः भुगतान बैंक प्रमाणीकरण (${caseItem.failureEvent.decline.reason}) के कारण पूरा नहीं हो पाया।\n\nअपनी सेवा को बिना किसी रुकावट के जारी रखने के लिए, कृपया नीचे दिए गए सुरक्षित 1-क्लिक लिंक से भुगतान विधि अपडेट करें:\n\n👉 https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}\n\nकिसी भी सहायता के लिए आप इस संदेश का उत्तर दे सकते हैं। - Team Razorpay Support`;
+      const link = `https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}`;
+      const amountStr = `₹${caseItem.customer.amountINR.toLocaleString('en-IN')}`;
+      const isHard = caseItem.classification.isHardDecline;
+
+      if (language === 'tamil') {
+        generatedBody = isHard
+          ? `வணக்கம் ${caseItem.customer.name}!\n\nஉங்கள் ${caseItem.customer.planName} சந்தா கட்டணம் (${amountStr}) வங்கி கார்டு ரத்து செய்யப்பட்டதால் நிறுத்தப்பட்டுள்ளது.\n\nசேவை தடையின்றி தொடர, புதிய கட்டண முறையை சேர்க்க இந்த 1-க்ளிக் இணைப்பை பயன்படுத்தவும்:\n\n👉 ${link}\n\nஉதவிக்கு எங்களை தொடர்பு கொள்ளலாம். - Team Razorpay Support`
+          : `வணக்கம் ${caseItem.customer.name}! 🙏\n\nஉங்கள் ${caseItem.customer.planName} சந்தா புதுப்பித்தல் (${amountStr}) தற்காலிக வங்கி சரிபார்ப்புக் காரணத்தால் (${caseItem.failureEvent.decline.reason}) நிறைவடையவில்லை.\n\nஉங்கள் சேவை தடையின்றி தொடர, 1-க்ளிக் மூலம் சரிசெய்யவும்:\n\n👉 ${link}\n\nநன்றி! - Team Razorpay Support`;
+      } else if (language === 'telugu') {
+        generatedBody = isHard
+          ? `నమస్కారం ${caseItem.customer.name}!\n\nమీ ${caseItem.customer.planName} చందా (${amountStr}) బ్యాంక్ కార్డ్ రద్దు కావడం వల్ల ఆగిపోయింది.\n\nసేవలు నిరంతరంగా కొనసాగేందుకు, దయచేసి కొత్త కార్డ్ నమోదు చేయండి:\n\n👉 ${link}\n\n- Team Razorpay Support`
+          : `నమస్కారం ${caseItem.customer.name}! 🙏\n\nమీ ${caseItem.customer.planName} పునరావృత చెల్లింపు (${amountStr}) తాత్కాలిక బ్యాంక్ కారణం (${caseItem.failureEvent.decline.reason}) వల్ల పూర్తి కాలేదు.\n\nసేవలు అంతరాయం లేకుండా ఉండటానికి 1-క్లిక్ లింక్ ద్వారా పునరుద్ధరించండి:\n\n👉 ${link}\n\nసహాయం కోసం సంప్రదించండి. - Team Razorpay Support`;
+      } else if (language === 'kannada') {
+        generatedBody = `ನಮಸ್ಕಾರ ${caseItem.customer.name}! 🙏\n\nನಿಮ್ಮ ${caseItem.customer.planName} ಚಂದಾದಾರಿಕೆ ಪಾವತಿಯು (${amountStr}) ಬ್ಯಾಂಕ್ ಪ್ರಕ್ರಿಯೆಯ ಕಾರಣದಿಂದ (${caseItem.failureEvent.decline.reason}) ಪೂರ್ಣಗೊಂಡಿಲ್ಲ.\n\nನಿಮ್ಮ ಸೇವೆ ತಡೆರಹಿತವಾಗಿ ಮುಂದುವರಿಯಲು, ದಯವಿಟ್ಟು 1-ಕ್ಲಿಕ್ ಲಿಂಕ್ ಬಳಸಿ ನವೀಕರಿಸಿ:\n\n👉 ${link}\n\n- Team Razorpay Support`;
+      } else if (language === 'malayalam') {
+        generatedBody = `നമസ്കാരം ${caseItem.customer.name}! 🙏\n\nനിങ്ങളുടെ ${caseItem.customer.planName} സബ്സ്ക്രിപ്ഷൻ പേയ്മെന്റ് (${amountStr}) ബാങ്ക് പ്രോസസ്സിംഗ് കാരണം (${caseItem.failureEvent.decline.reason}) പൂർത്തിയായില്ല.\n\nസേവനം തടസ്സമില്ലാതെ തുടരാൻ, ഈ 1-ക്ലിക്ക് ലിങ്ക് വഴി പേയ്മെന്റ് പുതുക്കുക:\n\n👉 ${link}\n\n- Team Razorpay Support`;
+      } else if (language === 'marathi') {
+        generatedBody = `नमस्कार ${caseItem.customer.name}! 🙏\n\nतुमचे ${caseItem.customer.planName} वर्गणीचे पेमेंट (${amountStr}) तात्पुरत्या बँक समस्येमुळे (${caseItem.failureEvent.decline.reason}) पूर्ण होऊ शकले नाही.\n\nअखंड सेवेसाठी, कृपया या सुरक्षित 1-क्लिक लिंकद्वारे पेमेंट पद्धत अपडेट करा:\n\n👉 ${link}\n\n- Team Razorpay Support`;
+      } else if (language === 'bengali') {
+        generatedBody = `নমস্কার ${caseItem.customer.name}! 🙏\n\nআপনার ${caseItem.customer.planName} সাবস্ক্রিপশন পেমেন্ট (${amountStr}) সাময়িক ব্যাংক ভেরিফিকেশনের কারণে (${caseItem.failureEvent.decline.reason}) সফল হয়নি।\n\nপরিষেবাটি চালু রাখতে, অনুগ্রহ করে এই নিরাপদ ১-ক্লিক লিংকের মাধ্যমে আপডেট করুন:\n\n👉 ${link}\n\n- Team Razorpay Support`;
+      } else if (language === 'gujarati') {
+        generatedBody = `નમસ્તે ${caseItem.customer.name}! 🙏\n\nતમારા ${caseItem.customer.planName} સબ્સ્ક્રિપ્શન પેમેન્ટ (${amountStr}) બેંક અધિકૃતતા કારણે (${caseItem.failureEvent.decline.reason}) પૂર્ણ થઈ શક્યું નથી.\n\nઅવિરત સેવા માટે કૃપા કરીને આ 1-ક્લિક લિંકથી પેમેન્ટ અપડેટ કરો:\n\n👉 ${link}\n\n- Team Razorpay Support`;
+      } else if (language === 'hindi') {
+        generatedBody = `नमस्ते ${caseItem.customer.name}! 🙏\n\nआपकी ${caseItem.customer.planName} सदस्यता (${amountStr}) का स्वतः भुगतान बैंक प्रमाणीकरण (${caseItem.failureEvent.decline.reason}) के कारण पूरा नहीं हो पाया।\n\nअपनी सेवा को बिना किसी रुकावट के जारी रखने के लिए, कृपया नीचे दिए गए सुरक्षित 1-क्लिक लिंक से भुगतान विधि अपडेट करें:\n\n👉 ${link}\n\nकिसी भी सहायता के लिए आप इस संदेश का उत्तर दे सकते हैं। - Team Razorpay Support`;
       } else if (language === 'hinglish') {
-        generatedBody = `Namaste ${caseItem.customer.name}! 👋\n\nAapka ${caseItem.customer.planName} subscription (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) ka payment bank processing glitch ki wajah se complete nahi ho paya.\n\nAapki service bina kisi interruption ke continuous rahe, iske liye please neeche diye link se 1-click me payment refresh ya card update karein:\n\n👉 https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}\n\nKoi help chahiye ho toh reply karein. Team Razorpay Support`;
+        generatedBody = `Namaste ${caseItem.customer.name}! 👋\n\nAapka ${caseItem.customer.planName} subscription (${amountStr}) ka payment bank processing glitch ki wajah se complete nahi ho paya.\n\nAapki service bina kisi interruption ke continuous rahe, iske liye please neeche diye link se 1-click me payment refresh ya card update karein:\n\n👉 ${link}\n\nKoi help chahiye ho toh reply karein. Team Razorpay Support`;
       } else {
-        generatedBody = `Hi ${caseItem.customer.name},\n\nYour recurring subscription payment for ${caseItem.customer.planName} (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) couldn't be processed due to a temporary bank authorization notice (${caseItem.failureEvent.decline.reason}).\n\nTo ensure your service remains uninterrupted, please refresh your payment method via this secure 1-click link:\n\n👉 https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}\n\nNeed assistance? Reply to this message anytime. - Team Razorpay Support`;
+        generatedBody = `Hi ${caseItem.customer.name},\n\nYour recurring subscription payment for ${caseItem.customer.planName} (${amountStr}) couldn't be processed due to a temporary bank authorization notice (${caseItem.failureEvent.decline.reason}).\n\nTo ensure your service remains uninterrupted, please refresh your payment method via this secure 1-click link:\n\n👉 ${link}\n\nNeed assistance? Reply to this message anytime. - Team Razorpay Support`;
       }
       personalizedReasoning = `Generated with built-in heuristic template matching ${caseItem.classification.zone} zone rules in ${language || 'english'}.`;
     }

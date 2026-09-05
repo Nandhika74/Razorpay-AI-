@@ -19,9 +19,12 @@ import {
   Check,
   Crown,
   HelpCircle,
+  Globe,
+  Terminal,
+  Code2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { RecoveryCase } from '../types';
+import { RecoveryCase, SupportedLanguage } from '../types';
 import { CustomerPaymentPortalModal } from './CustomerPaymentPortalModal';
 
 interface CaseDetailModalProps {
@@ -32,6 +35,25 @@ interface CaseDetailModalProps {
   isLoadingAction: boolean;
   priorityRank?: number;
 }
+
+export const REGIONAL_LANGUAGES: {
+  id: SupportedLanguage;
+  label: string;
+  nativeLabel: string;
+  region: string;
+  group: 'global' | 'south' | 'west_east' | 'north';
+}[] = [
+  { id: 'english', label: 'English', nativeLabel: 'English', region: 'Global & Pan-India Standard', group: 'global' },
+  { id: 'tamil', label: 'Tamil', nativeLabel: 'தமிழ்', region: 'Tamil Nadu (Chennai, Coimbatore SaaS Hubs)', group: 'south' },
+  { id: 'telugu', label: 'Telugu', nativeLabel: 'తెలుగు', region: 'Telangana & AP (Hyderabad Cyberabad)', group: 'south' },
+  { id: 'kannada', label: 'Kannada', nativeLabel: 'ಕನ್ನಡ', region: 'Karnataka (Bengaluru Tech Corridor)', group: 'south' },
+  { id: 'malayalam', label: 'Malayalam', nativeLabel: 'മലയാളം', region: 'Kerala (Kochi & Trivandrum Startups)', group: 'south' },
+  { id: 'marathi', label: 'Marathi', nativeLabel: 'मराठी', region: 'Maharashtra (Mumbai Financial / Pune SaaS)', group: 'west_east' },
+  { id: 'bengali', label: 'Bengali', nativeLabel: 'বাংলা', region: 'West Bengal (Kolkata Commercial & Arts Hubs)', group: 'west_east' },
+  { id: 'gujarati', label: 'Gujarati', nativeLabel: 'ગુજરાતી', region: 'Gujarat (Ahmedabad & Surat Trade)', group: 'west_east' },
+  { id: 'hindi', label: 'Hindi', nativeLabel: 'हिंदी', region: 'North & Central India (Delhi NCR, UP)', group: 'north' },
+  { id: 'hinglish', label: 'Hinglish', nativeLabel: 'Hinglish', region: 'Conversational Metro Mix', group: 'north' },
+];
 
 const getAvatarStyle = (name: string) => {
   const palettes = [
@@ -58,7 +80,7 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
 
   const [activeTab, setActiveTab] = useState<'decision_tree' | 'ai_outreach' | 'audit_trail'>('decision_tree');
   const [outreachChannel, setOutreachChannel] = useState<'whatsapp' | 'email' | 'sms'>('whatsapp');
-  const [outreachLanguage, setOutreachLanguage] = useState<'english' | 'hindi' | 'hinglish'>(
+  const [outreachLanguage, setOutreachLanguage] = useState<SupportedLanguage>(
     caseItem.customer.preferredLanguage || 'english'
   );
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -67,7 +89,16 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
   const [recipientMode, setRecipientMode] = useState<'customer' | 'custom'>('customer');
   const [customPhone, setCustomPhone] = useState('');
   const [customEmail, setCustomEmail] = useState('');
-  const [dispatchStatus, setDispatchStatus] = useState<string | null>(null);
+  const [gatewayTransmission, setGatewayTransmission] = useState<{
+    receiptId: string;
+    timestamp: string;
+    channel: 'whatsapp' | 'email' | 'sms';
+    destination: string;
+    endpoint: string;
+    gatewayProvider: string;
+    httpStatus: number;
+    payload: any;
+  } | null>(null);
   const [isCustomerPortalOpen, setIsCustomerPortalOpen] = useState(false);
 
   // Automatically synchronize tone & language to customer's registered preference whenever caseItem changes
@@ -77,6 +108,7 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
     } else {
       setOutreachLanguage('english');
     }
+    setGatewayTransmission(null);
   }, [caseItem?.id, caseItem?.customer?.preferredLanguage]);
 
   const isHardDecline = caseItem.classification.zone === 'NEVER_RETRY';
@@ -87,8 +119,8 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
       await onExecuteAction(caseItem.id, actionType, note);
       if (actionType === 'SMART_RETRY' || actionType === 'SIMULATE_CUSTOMER_PAY') {
         confetti({
-          particleCount: 50,
-          spread: 60,
+          particleCount: 60,
+          spread: 70,
           origin: { y: 0.7 },
         });
       }
@@ -113,48 +145,130 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  // Authentic language templates matching user preferences
-  const defaultHindiBody = isHardDecline
-    ? `नमस्ते ${caseItem.customer.name},\n\nआपकी ${caseItem.customer.planName} सदस्यता (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) का नवीनीकरण पूरा नहीं हो पाया क्योंकि आपके बैंक द्वारा कार्ड निष्क्रिय रिपोर्ट किया गया है।\n\nअपनी सेवा को बिना किसी रुकावट के जारी रखने के लिए, कृपया नीचे दिए गए सुरक्षित 1-क्लिक लिंक से नया भुगतान माध्यम जोड़ें:\n\n👉 https://rzp.io/l/replace_mandate_${caseItem.id.toLowerCase()}\n\nहमारी सहायता टीम 24x7 उपलब्ध है। - Team Razorpay Support`
-    : `नमस्ते ${caseItem.customer.name}! 🙏\n\nआपकी ${caseItem.customer.planName} सदस्यता (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) का स्वतः भुगतान बैंक प्रमाणीकरण (${caseItem.failureEvent.decline.reason}) के कारण पूरा नहीं हो पाया।\n\nअपनी सेवा को बिना किसी रुकावट के जारी रखने के लिए, कृपया नीचे दिए गए सुरक्षित 1-क्लिक लिंक से भुगतान विधि अपडेट करें:\n\n👉 https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}\n\nकिसी भी सहायता के लिए आप इस संदेश का उत्तर दे सकते हैं। - Team Razorpay Support`;
+  // Comprehensive Authentic Multi-Regional Language Templates
+  const getLanguageTemplateBody = (lang: SupportedLanguage): string => {
+    const link = `https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}`;
+    const replaceLink = `https://rzp.io/l/replace_mandate_${caseItem.id.toLowerCase()}`;
+    const name = caseItem.customer.name;
+    const plan = caseItem.customer.planName;
+    const amountStr = `₹${caseItem.customer.amountINR.toLocaleString('en-IN')}`;
+    const reason = caseItem.failureEvent.decline.reason;
 
-  const defaultHinglishBody = isHardDecline
-    ? `Namaste ${caseItem.customer.name}! 👋\n\nAapka ${caseItem.customer.planName} subscription (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) card issuer ke inactive report ki wajah se pause ho gaya hai.\n\nBina kisi interruption ke access continue rakhne ke liye, please neeche diye link se 1-click me replacement card set karein:\n\n👉 https://rzp.io/l/replace_mandate_${caseItem.id.toLowerCase()}\n\nTeam Razorpay Support`
-    : `Namaste ${caseItem.customer.name}! 👋\n\nAapka ${caseItem.customer.planName} subscription (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) ka payment bank processing glitch ki wajah se complete nahi ho paya.\n\nAapki service bina kisi interruption ke continuous rahe, iske liye please neeche diye link se 1-click me payment refresh ya card update karein:\n\n👉 https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}\n\nKoi help chahiye ho toh reply karein. Team Razorpay Support`;
+    switch (lang) {
+      case 'tamil':
+        return isHardDecline
+          ? `வணக்கம் ${name}!\n\nஉங்கள் ${plan} சந்தா கட்டணம் (${amountStr}) வங்கி கார்டு ரத்து செய்யப்பட்டதால் நிறுத்தப்பட்டுள்ளது.\n\nசேவை தடையின்றி தொடர, புதிய கட்டண முறையை சேர்க்க இந்த பாதுகாப்பான 1-க்ளிக் இணைப்பை பயன்படுத்தவும்:\n\n👉 ${replaceLink}\n\nஉதவிக்கு எங்களை தொடர்பு கொள்ளலாம். - Team Razorpay Support`
+          : `வணக்கம் ${name}! 🙏\n\nஉங்கள் ${plan} சந்தா புதுப்பித்தல் (${amountStr}) தற்காலிக வங்கி சரிபார்ப்புக் காரணத்தால் (${reason}) நிறைவடையவில்லை.\n\nஉங்கள் சேவை தடையின்றி தொடர, இந்த பாதுகாப்பான 1-க்ளிக் இணைப்பு மூலம் சரிசெய்யவும்:\n\n👉 ${link}\n\nஏதேனும் உதவி தேவையா? இந்த செய்திக்கு பதிலளிக்கவும். - Team Razorpay Support`;
 
-  const defaultEnglishBody = isHardDecline
-    ? `Hi ${caseItem.customer.name},\n\nWe noticed your recurring subscription payment for ${caseItem.customer.planName} (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) was halted because the payment card on file has been reported inactive/cancelled by your issuing bank.\n\nTo keep your access uninterrupted, please set up a replacement payment method here:\n\n👉 https://rzp.io/l/replace_mandate_${caseItem.id.toLowerCase()}\n\nOur support team is also on standby to assist you directly.`
-    : `Hi ${caseItem.customer.name},\n\nYour recurring subscription payment for ${caseItem.customer.planName} (₹${caseItem.customer.amountINR.toLocaleString('en-IN')}) couldn't be processed due to a temporary bank authorization notice (${caseItem.failureEvent.decline.reason}).\n\nTo ensure your service remains uninterrupted, please refresh your payment method via this secure 1-click link:\n\n👉 https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}\n\nNeed assistance? Reply to this message anytime. - Team Razorpay Support`;
+      case 'telugu':
+        return isHardDecline
+          ? `నమస్కారం ${name}!\n\nమీ ${plan} చందా (${amountStr}) బ్యాంక్ కార్డ్ రద్దు కావడం వల్ల ఆగిపోయింది.\n\nసేవలు నిరంతరంగా కొనసాగేందుకు, దయచేసి కొత్త కార్డ్ నమోదు చేయండి:\n\n👉 ${replaceLink}\n\n- Team Razorpay Support`
+          : `నమస్కారం ${name}! 🙏\n\nమీ ${plan} పునరావృత చెల్లింపు (${amountStr}) తాత్కాలిక బ్యాంక్ కారణం (${reason}) వల్ల పూర్తి కాలేదు.\n\nసేవలు అంతరాయం లేకుండా ఉండటానికి 1-క్లిక్ లింక్ ద్వారా పునరుద్ధరించండి:\n\n👉 ${link}\n\nఏదైనా సహాయం కావాలా? ఈ సందేశానికి ప్రత్యుత్తరం ఇవ్వండి. - Team Razorpay Support`;
+
+      case 'kannada':
+        return isHardDecline
+          ? `ನಮಸ್ಕಾರ ${name}!\n\nನಿಮ್ಮ ${plan} ಚಂದಾದಾರಿಕೆ ಪಾವತಿಯು (${amountStr}) ಬ್ಯಾಂಕ್ ಕಾರ್ಡ್ ರದ್ದತಿಯ ಕಾರಣ ಸ್ಥಗಿತಗೊಂಡಿದೆ.\n\nಸೇವೆ ಮುಂದುವರಿಸಲು, ದಯವಿಟ್ಟು ಹೊಸ ಪಾವತಿ ವಿಧಾನವನ್ನು ಸೇರಿಸಿ:\n\n👉 ${replaceLink}\n\n- Team Razorpay Support`
+          : `ನಮಸ್ಕಾರ ${name}! 🙏\n\nನಿಮ್ಮ ${plan} ಚಂದಾದಾರಿಕೆ ಪಾವತಿಯು (${amountStr}) ಬ್ಯಾಂಕ್ ಪ್ರಕ್ರಿಯೆಯ ಕಾರಣದಿಂದ (${reason}) ಪೂರ್ಣಗೊಂಡಿಲ್ಲ.\n\nನಿಮ್ಮ ಸೇವೆ ತಡೆರಹಿತವಾಗಿ ಮುಂದುವರಿಯಲು, ದಯವಿಟ್ಟು 1-ಕ್ಲಿಕ್ ಲಿಂಕ್ ಬಳಸಿ ನವೀಕರಿಸಿ:\n\n👉 ${link}\n\nಸಹಾಯ ಬೇಕಿದ್ದಲ್ಲಿ ಉತ್ತರಿಸಿ. - Team Razorpay Support`;
+
+      case 'malayalam':
+        return isHardDecline
+          ? `നമസ്കാരം ${name}!\n\nനിങ്ങളുടെ ${plan} സബ്സ്ക്രിപ്ഷൻ പേയ്മെന്റ് (${amountStr}) ബാങ്ക് കാർഡ് റദ്ദാക്കപ്പെട്ടതിനാൽ നിർത്തിവെച്ചിരിക്കുന്നു.\n\nസേവനം തുടരാൻ, ദയവായി പുതിയ പേയ്മെന്റ് രീതി നൽകുക:\n\n👉 ${replaceLink}\n\n- Team Razorpay Support`
+          : `നമസ്കാരം ${name}! 🙏\n\nനിങ്ങളുടെ ${plan} സബ്സ്ക്രിപ്ഷൻ പേയ്മെന്റ് (${amountStr}) ബാങ്ക് പ്രോസസ്സിംഗ് കാരണം (${reason}) പൂർത്തിയായില്ല.\n\nസേവനം തടസ്സമില്ലാതെ തുടരാൻ, ഈ 1-ക്ലിക്ക് ലിങ്ക് വഴി പേയ്മെന്റ് പുതുക്കുക:\n\n👉 ${link}\n\nസഹായം ആവശ്യമെങ്കിൽ മറുപടി നൽകുക. - Team Razorpay Support`;
+
+      case 'marathi':
+        return isHardDecline
+          ? `नमस्कार ${name}!\n\nतुमचे ${plan} वर्गणीचे पेमेंट (${amountStr}) बँक कार्ड निष्क्रिय झाल्यामुळे थांबवले गेले आहे.\n\nअखंड सेवेसाठी, कृपया या 1-क्लिक लिंकद्वारे नवीन पेमेंट पद्धत जोडा:\n\n👉 ${replaceLink}\n\n- Team Razorpay Support`
+          : `नमस्कार ${name}! 🙏\n\nतुमचे ${plan} वर्गणीचे पेमेंट (${amountStr}) तात्पुरत्या बँक समस्येमुळे (${reason}) पूर्ण होऊ शकले नाही.\n\nअखंड सेवेसाठी, कृपया या सुरक्षित 1-क्लिक लिंकद्वारे पेमेंट पद्धत अपडेट करा:\n\n👉 ${link}\n\nमदतीसाठी या मेसेजला रिप्लाय करा. - Team Razorpay Support`;
+
+      case 'bengali':
+        return isHardDecline
+          ? `নমস্কার ${name}!\n\nআপনার ${plan} সাবস্ক্রিপশন পেমেন্ট (${amountStr}) ব্যাংক কার্ড নিষ্ক্রিয় হওয়ার কারণে স্থগিত করা হয়েছে।\n\nপরিষেবাটি চালু রাখতে, অনুগ্রহ করে নতুন পেমেন্ট মাধ্যম যুক্ত করুন:\n\n👉 ${replaceLink}\n\n- Team Razorpay Support`
+          : `নমস্কার ${name}! 🙏\n\nআপনার ${plan} সাবস্ক্রিপশন পেমেন্ট (${amountStr}) সাময়িক ব্যাংক ভেরিফিকেশনের কারণে (${reason}) সফল হয়নি।\n\nপরিষেবাটি চালু রাখতে, অনুগ্রহ করে এই নিরাপদ ১-ক্লিক লিংকের মাধ্যমে আপডেট করুন:\n\n👉 ${link}\n\nসাহায্যের জন্য উত্তর দিন। - Team Razorpay Support`;
+
+      case 'gujarati':
+        return isHardDecline
+          ? `નમસ્તે ${name}!\n\nતમારા ${plan} સબ્સ્ક્રિપ્શન પેમેન્ટ (${amountStr}) બેંક કાર્ડ રદ થવાને કારણે અટકી ગયું છે.\n\nસેવા ચાલુ રાખવા માટે, કૃપા કરીને આ લિંક પરથી નવું કાર્ડ ઉમેરો:\n\n👉 ${replaceLink}\n\n- Team Razorpay Support`
+          : `નમસ્તે ${name}! 🙏\n\nતમારા ${plan} સબ્સ્ક્રિપ્શન પેમેન્ટ (${amountStr}) બેંક અધિકૃતતા કારણે (${reason}) પૂર્ણ થઈ શક્યું નથી.\n\nઅવિરત સેવા માટે કૃપા કરીને આ 1-ક્લિક લિંકથી પેમેન્ટ અપડેટ કરો:\n\n👉 ${link}\n\nમદદ માટે આ મેસેજનો જવાબ આપો. - Team Razorpay Support`;
+
+      case 'hindi':
+        return isHardDecline
+          ? `नमस्ते ${name},\n\nआपकी ${plan} सदस्यता (${amountStr}) का नवीनीकरण पूरा नहीं हो पाया क्योंकि आपके बैंक द्वारा कार्ड निष्क्रिय रिपोर्ट किया गया है।\n\nअपनी सेवा को बिना किसी रुकावट के जारी रखने के लिए, कृपया नीचे दिए गए सुरक्षित 1-क्लिक लिंक से नया भुगतान माध्यम जोड़ें:\n\n👉 ${replaceLink}\n\nहमारी सहायता टीम 24x7 उपलब्ध है। - Team Razorpay Support`
+          : `नमस्ते ${name}! 🙏\n\nआपकी ${plan} सदस्यता (${amountStr}) का स्वतः भुगतान बैंक प्रमाणीकरण (${reason}) के कारण पूरा नहीं हो पाया।\n\nअपनी सेवा को बिना किसी रुकावट के जारी रखने के लिए, कृपया नीचे दिए गए सुरक्षित 1-क्लिक लिंक से भुगतान विधि अपडेट करें:\n\n👉 ${link}\n\nकिसी भी सहायता के लिए आप इस संदेश का उत्तर दे सकते हैं। - Team Razorpay Support`;
+
+      case 'hinglish':
+        return isHardDecline
+          ? `Namaste ${name}! 👋\n\nAapka ${plan} subscription (${amountStr}) card issuer ke inactive report ki wajah se pause ho gaya hai.\n\nBina kisi interruption ke access continue rakhne ke liye, please neeche diye link se 1-click me replacement card set karein:\n\n👉 ${replaceLink}\n\nTeam Razorpay Support`
+          : `Namaste ${name}! 👋\n\nAapka ${plan} subscription (${amountStr}) ka payment bank processing glitch ki wajah se complete nahi ho paya.\n\nAapki service bina kisi interruption ke continuous rahe, iske liye please neeche diye link se 1-click me payment refresh ya card update karein:\n\n👉 ${link}\n\nKoi help chahiye ho toh reply karein. Team Razorpay Support`;
+
+      case 'english':
+      default:
+        return isHardDecline
+          ? `Hi ${name},\n\nWe noticed your recurring subscription payment for ${plan} (${amountStr}) was halted because the payment card on file has been reported inactive/cancelled by your issuing bank.\n\nTo keep your access uninterrupted, please set up a replacement payment method here:\n\n👉 ${replaceLink}\n\nOur support team is also on standby to assist you directly. - Team Razorpay Support`
+          : `Hi ${name},\n\nYour recurring subscription payment for ${plan} (${amountStr}) couldn't be processed due to a temporary bank authorization notice (${reason}).\n\nTo ensure your service remains uninterrupted, please refresh your payment method via this secure 1-click link:\n\n👉 ${link}\n\nNeed assistance? Reply to this message anytime. - Team Razorpay Support`;
+    }
+  };
 
   // Dynamic message body that automatically adapts to the selected/preferred language immediately
   const currentMessageBody =
-    (caseItem.outreachDraft && caseItem.outreachDraft.language === outreachLanguage)
+    caseItem.outreachDraft && caseItem.outreachDraft.language === outreachLanguage
       ? caseItem.outreachDraft.messageBody
-      : (outreachLanguage === 'hindi'
-        ? defaultHindiBody
-        : outreachLanguage === 'hinglish'
-        ? defaultHinglishBody
-        : defaultEnglishBody);
+      : getLanguageTemplateBody(outreachLanguage);
 
   const activeTargetPhone = recipientMode === 'custom' && customPhone ? customPhone : caseItem.customer.phone;
   const activeTargetEmail = recipientMode === 'custom' && customEmail ? customEmail : caseItem.customer.email;
-  
+
   // Intelligent Phone Normalization: If 10 digits (like 9994791779), prepend India country code 91!
   let cleanPhoneDigits = activeTargetPhone.replace(/[^0-9]/g, '');
   if (cleanPhoneDigits.length === 10) {
     cleanPhoneDigits = `91${cleanPhoneDigits}`;
   }
 
+  const emailSubject = `Action Required: Renewal of ${caseItem.customer.planName} Subscription (₹${caseItem.customer.amountINR.toLocaleString('en-IN')})`;
   const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhoneDigits}&text=${encodeURIComponent(currentMessageBody)}`;
-  const mailtoUrl = `mailto:${activeTargetEmail}?subject=${encodeURIComponent(`Payment Notice: ${caseItem.customer.planName} Subscription (₹${caseItem.customer.amountINR})`)}&body=${encodeURIComponent(currentMessageBody)}`;
+  const mailtoUrl = `mailto:${activeTargetEmail}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(currentMessageBody)}`;
+  const smsUrl = `sms:+${cleanPhoneDigits}?body=${encodeURIComponent(currentMessageBody)}`;
 
   const handleSimulateDispatch = async () => {
     const actionToTake = caseItem.status === 'RECOVERED' ? 'TEST_DISPATCH' : 'DISPATCH_COMMUNICATION';
     const destination = outreachChannel === 'email' ? activeTargetEmail : activeTargetPhone;
-    const note = `Dispatched via ${outreachChannel.toUpperCase()} (${outreachLanguage}) to ${destination}`;
-    
+    const receiptNum = `ACK-${Math.floor(100000 + Math.random() * 900000)}`;
+    const note = `Dispatched via ${outreachChannel.toUpperCase()} Gateway (${outreachLanguage}) to ${destination} [Receipt #${receiptNum}]`;
+
     await handleAction(actionToTake, note);
-    setDispatchStatus(`Message dispatched to ${destination} via ${outreachChannel.toUpperCase()} Gateway at ${new Date().toLocaleTimeString()} [Receipt #ACK-${Math.floor(100000 + Math.random() * 900000)}]`);
+
+    const endpoints = {
+      whatsapp: 'https://api.razorpay.com/v1/subscriptions/notifications/whatsapp',
+      email: 'https://api.razorpay.com/v1/subscriptions/notifications/email',
+      sms: 'https://api.razorpay.com/v1/subscriptions/notifications/sms',
+    };
+
+    const providers = {
+      whatsapp: 'WhatsApp Business Cloud API (Meta Graph v19.0)',
+      email: 'Razorpay Transactional Email Engine (AWS SES / SendGrid Enterprise)',
+      sms: 'Karix / Gupshup DLT Compliant Telco Gateway',
+    };
+
+    setGatewayTransmission({
+      receiptId: receiptNum,
+      timestamp: new Date().toLocaleTimeString(),
+      channel: outreachChannel,
+      destination,
+      endpoint: endpoints[outreachChannel],
+      gatewayProvider: providers[outreachChannel],
+      httpStatus: 200,
+      payload: {
+        event: 'subscription.recovery.dispatched',
+        subscription_id: caseItem.id,
+        mandate_id: caseItem.customer.mandateId,
+        channel: outreachChannel,
+        language: outreachLanguage,
+        recipient: destination,
+        amount: caseItem.customer.amountINR,
+        recovery_url: `https://rzp.io/l/mandate_ref_${caseItem.id.toLowerCase()}`,
+        dispatch_status: 'QUEUED_FOR_DELIVERY',
+        receipt_id: receiptNum,
+      },
+    });
   };
 
   return (
@@ -550,145 +664,202 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
           {/* TAB 2: AI OUTREACH GENERATOR */}
           {activeTab === 'ai_outreach' && (
             <div className="space-y-4">
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-sm">Gemini 3.7 Contextual Outreach Synthesizer</h3>
-                    <p className="text-xs text-slate-400 font-medium mt-0.5">
-                      {isHardDecline 
-                        ? 'Generates card-replacement onboarding notifications informing customer of compromised payment method.'
-                        : 'Creates empathetic, personalized recovery notifications matching customer tenure and error context.'}
+              <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+                {/* Header & Gemini Action */}
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-slate-100">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-bold text-slate-900 text-sm">Autonomous Recovery Outreach Hub</h3>
+                      <span className="text-[10px] bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-indigo-600" />
+                        <span>Powered by Gemini 3.7 Flash</span>
+                      </span>
+                      {caseItem.outreachDraft && caseItem.outreachDraft.language === outreachLanguage ? (
+                        <span className="text-[10px] bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                          ✨ AI Personalized Draft Active
+                        </span>
+                      ) : (
+                        <span className="text-[10px] bg-slate-100 border border-slate-200 text-slate-600 font-semibold px-2 py-0.5 rounded-full">
+                          ⚡ Instant Regional Template Active
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-2xl">
+                      <strong>Why synthesize with Gemini?</strong> Standard banking templates use rigid, generic copy. Gemini 3.7 Flash reads the customer's <strong>{caseItem.customer.tenureMonths}-month tenure</strong>, payment reliability, and exact decline reason (<code>{caseItem.failureEvent.decline.reason}</code>) to craft an empathetic recovery message that protects customer goodwill.
                     </p>
                   </div>
                   <button
                     id="btn-generate-ai-outreach"
                     onClick={handleGenerateAI}
                     disabled={isGeneratingAI}
-                    className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200 transition-colors disabled:opacity-50"
+                    className="inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200 transition-colors disabled:opacity-50 shrink-0 cursor-pointer"
+                    title="Generate an empathetic AI-customized message tailored specifically to this customer's profile"
                   >
                     <Sparkles className={`w-3.5 h-3.5 mr-1.5 ${isGeneratingAI ? 'animate-spin' : ''}`} />
-                    <span>{isGeneratingAI ? 'Synthesizing...' : 'Generate New Draft'}</span>
+                    <span>{isGeneratingAI ? 'Synthesizing with Gemini...' : 'Synthesize with Gemini'}</span>
                   </button>
                 </div>
 
-                {/* Generator Options */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1.5">Target Channel:</label>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => setOutreachChannel('whatsapp')}
-                        className={`flex-1 py-2 px-3 rounded-xl border text-xs flex items-center justify-center space-x-1.5 transition-all ${
-                          outreachChannel === 'whatsapp'
-                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold shadow-2xs'
-                            : 'bg-white border-slate-200 text-slate-600 font-medium'
-                        }`}
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>WhatsApp</span>
-                      </button>
-                      <button
-                        onClick={() => setOutreachChannel('email')}
-                        className={`flex-1 py-2 px-3 rounded-xl border text-xs flex items-center justify-center space-x-1.5 transition-all ${
-                          outreachChannel === 'email'
-                            ? 'bg-indigo-50 border-indigo-300 text-indigo-800 font-bold shadow-2xs'
-                            : 'bg-white border-slate-200 text-slate-600 font-medium'
-                        }`}
-                      >
-                        <Mail className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>Email</span>
-                      </button>
-                      <button
-                        onClick={() => setOutreachChannel('sms')}
-                        className={`flex-1 py-2 px-3 rounded-xl border text-xs flex items-center justify-center space-x-1.5 transition-all ${
-                          outreachChannel === 'sms'
-                            ? 'bg-purple-50 border-purple-300 text-purple-800 font-bold shadow-2xs'
-                            : 'bg-white border-slate-200 text-slate-600 font-medium'
-                        }`}
-                      >
-                        <Smartphone className="w-3.5 h-3.5 text-purple-600" />
-                        <span>SMS Link</span>
-                      </button>
-                    </div>
+                {/* STEP 1: Delivery Channel Selection */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center font-bold">1</span>
+                      <span>Delivery Channel & Format</span>
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-medium">Select where to dispatch outreach</span>
                   </div>
 
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="font-bold text-slate-700 block">Tone & Language:</label>
-                      {caseItem.customer.preferredLanguage && (
-                        <span className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full font-bold">
-                          Customer Registered Preference: {caseItem.customer.preferredLanguage === 'hindi' ? 'हिंदी (Hindi)' : caseItem.customer.preferredLanguage === 'hinglish' ? 'Hinglish' : 'English'} (Auto-Selected)
-                        </span>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={() => setOutreachLanguage('english')}
-                        className={`py-2 px-3 rounded-xl border text-xs transition-all flex flex-col items-center justify-center gap-0.5 ${
-                          outreachLanguage === 'english'
-                            ? 'bg-slate-900 border-slate-900 text-white font-bold shadow-2xs'
-                            : 'bg-white border-slate-200 text-slate-600 font-medium hover:border-slate-300'
-                        }`}
-                      >
-                        <span>English (Professional)</span>
-                        {caseItem.customer.preferredLanguage === 'english' && (
-                          <span className={`text-[9px] ${outreachLanguage === 'english' ? 'text-indigo-300' : 'text-indigo-600 font-bold'}`}>
-                            Customer Default
-                          </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* WhatsApp Option */}
+                    <button
+                      type="button"
+                      onClick={() => setOutreachChannel('whatsapp')}
+                      className={`p-3.5 rounded-2xl border text-left transition-all relative cursor-pointer ${
+                        outreachChannel === 'whatsapp'
+                          ? 'bg-emerald-50/80 border-emerald-400 shadow-sm ring-2 ring-emerald-200/50'
+                          : 'bg-white border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center space-x-2">
+                          <div className={`p-1.5 rounded-lg ${outreachChannel === 'whatsapp' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                            <MessageSquare className="w-4 h-4" />
+                          </div>
+                          <span className="font-bold text-xs text-slate-900">WhatsApp</span>
+                        </div>
+                        {outreachChannel === 'whatsapp' && (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">Active</span>
                         )}
-                      </button>
-                      <button
-                        onClick={() => setOutreachLanguage('hindi')}
-                        className={`py-2 px-3 rounded-xl border text-xs transition-all flex flex-col items-center justify-center gap-0.5 ${
-                          outreachLanguage === 'hindi'
-                            ? 'bg-slate-900 border-slate-900 text-white font-bold shadow-2xs'
-                            : 'bg-white border-slate-200 text-slate-600 font-medium hover:border-slate-300'
-                        }`}
-                      >
-                        <span>हिंदी (Hindi)</span>
-                        {caseItem.customer.preferredLanguage === 'hindi' && (
-                          <span className={`text-[9px] ${outreachLanguage === 'hindi' ? 'text-indigo-300' : 'text-indigo-600 font-bold'}`}>
-                            Customer Default
-                          </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-snug">
+                        Highest engagement in India (85%+ open rate). Direct 1-click mandate recovery link.
+                      </p>
+                    </button>
+
+                    {/* Email Option */}
+                    <button
+                      type="button"
+                      onClick={() => setOutreachChannel('email')}
+                      className={`p-3.5 rounded-2xl border text-left transition-all relative cursor-pointer ${
+                        outreachChannel === 'email'
+                          ? 'bg-indigo-50/80 border-indigo-400 shadow-sm ring-2 ring-indigo-200/50'
+                          : 'bg-white border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center space-x-2">
+                          <div className={`p-1.5 rounded-lg ${outreachChannel === 'email' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                            <Mail className="w-4 h-4" />
+                          </div>
+                          <span className="font-bold text-xs text-slate-900">Email Notice</span>
+                        </div>
+                        {outreachChannel === 'email' && (
+                          <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100/80 px-2 py-0.5 rounded-full">Active</span>
                         )}
-                      </button>
-                      <button
-                        onClick={() => setOutreachLanguage('hinglish')}
-                        className={`py-2 px-3 rounded-xl border text-xs transition-all flex flex-col items-center justify-center gap-0.5 ${
-                          outreachLanguage === 'hinglish'
-                            ? 'bg-slate-900 border-slate-900 text-white font-bold shadow-2xs'
-                            : 'bg-white border-slate-200 text-slate-600 font-medium hover:border-slate-300'
-                        }`}
-                      >
-                        <span>Hinglish (Conversational)</span>
-                        {caseItem.customer.preferredLanguage === 'hinglish' && (
-                          <span className={`text-[9px] ${outreachLanguage === 'hinglish' ? 'text-indigo-300' : 'text-indigo-600 font-bold'}`}>
-                            Customer Default
-                          </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-snug">
+                        Formal B2B / SaaS invoice notice. Prefilled subject, body, and invoice breakdown.
+                      </p>
+                    </button>
+
+                    {/* SMS Link Option */}
+                    <button
+                      type="button"
+                      onClick={() => setOutreachChannel('sms')}
+                      className={`p-3.5 rounded-2xl border text-left transition-all relative cursor-pointer ${
+                        outreachChannel === 'sms'
+                          ? 'bg-purple-50/80 border-purple-400 shadow-sm ring-2 ring-purple-200/50'
+                          : 'bg-white border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center space-x-2">
+                          <div className={`p-1.5 rounded-lg ${outreachChannel === 'sms' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                            <Smartphone className="w-4 h-4" />
+                          </div>
+                          <span className="font-bold text-xs text-slate-900">SMS Notice</span>
+                        </div>
+                        {outreachChannel === 'sms' && (
+                          <span className="text-[10px] font-bold text-purple-700 bg-purple-100/80 px-2 py-0.5 rounded-full">Active</span>
                         )}
-                      </button>
-                    </div>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-snug">
+                        Instant telecom fallback. Telecom Regulatory Authority (TRAI) DLT compliant link.
+                      </p>
+                    </button>
                   </div>
                 </div>
 
-                {/* Recipient Target Section */}
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs space-y-2.5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <span className="font-bold text-slate-800 flex items-center space-x-1.5">
-                        <UserCheck className="w-4 h-4 text-indigo-600" />
-                        <span>Target Recipient Information</span>
+                {/* STEP 2: Regional Language Selection */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center font-bold">2</span>
+                      <span>Regional Script & Language Localization</span>
+                    </span>
+                    {caseItem.customer.preferredLanguage && (
+                      <span className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full font-bold self-start sm:self-auto">
+                        📍 Customer Registered Preference:{' '}
+                        {REGIONAL_LANGUAGES.find((l) => l.id === caseItem.customer.preferredLanguage)?.nativeLabel || 'English'} ({caseItem.customer.preferredLanguage})
                       </span>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        {recipientMode === 'customer' 
-                          ? `Default subscription contact on file for ${caseItem.customer.name}` 
-                          : 'Enter your personal phone number or email to receive and test the real message'}
-                      </p>
-                    </div>
-                    <div className="flex space-x-1.5 bg-slate-200/80 p-1 rounded-xl shrink-0">
+                    )}
+                  </div>
+
+                  <p className="text-xs text-slate-500">
+                    Razorpay powers businesses across India’s major economic and technological hubs. Choose the native language matching your customer's location:
+                  </p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+                    {REGIONAL_LANGUAGES.map((lang) => {
+                      const isSelected = outreachLanguage === lang.id;
+                      const isCustomerDefault = caseItem.customer.preferredLanguage === lang.id;
+
+                      return (
+                        <button
+                          key={lang.id}
+                          type="button"
+                          onClick={() => setOutreachLanguage(lang.id)}
+                          className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
+                            isSelected
+                              ? 'bg-slate-900 border-slate-900 text-white shadow-md'
+                              : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="font-bold text-xs">{lang.label}</span>
+                            <span className={`text-[11px] font-semibold ${isSelected ? 'text-indigo-300' : 'text-indigo-600'}`}>
+                              {lang.nativeLabel}
+                            </span>
+                          </div>
+                          <span className={`text-[9.5px] mt-1 leading-tight line-clamp-1 ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
+                            {lang.region.split('(')[0]}
+                          </span>
+                          {isCustomerDefault && (
+                            <span className={`text-[8.5px] font-bold uppercase tracking-wider mt-1 px-1.5 py-0.2 rounded ${
+                              isSelected ? 'bg-indigo-500/30 text-indigo-200' : 'bg-indigo-50 text-indigo-700'
+                            }`}>
+                              Default Match
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* STEP 3: Recipient Contact Details */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center font-bold">3</span>
+                      <span>Target Recipient Contact</span>
+                    </span>
+                    <div className="flex space-x-1.5 bg-slate-100 p-1 rounded-xl">
                       <button
+                        type="button"
                         onClick={() => setRecipientMode('customer')}
-                        className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                        className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
                           recipientMode === 'customer'
                             ? 'bg-white text-indigo-700 shadow-xs'
                             : 'text-slate-600 hover:text-slate-900'
@@ -697,8 +868,9 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
                         Customer on File
                       </button>
                       <button
+                        type="button"
                         onClick={() => setRecipientMode('custom')}
-                        className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                        className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all cursor-pointer ${
                           recipientMode === 'custom'
                             ? 'bg-white text-indigo-700 shadow-xs'
                             : 'text-slate-600 hover:text-slate-900'
@@ -710,29 +882,24 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
                   </div>
 
                   {recipientMode === 'customer' ? (
-                    <div className="space-y-2 pt-1">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center space-x-2">
-                          <Smartphone className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <div className="truncate">
-                            <span className="block text-[10px] uppercase font-bold text-slate-400">Customer Phone:</span>
-                            <span className="font-mono font-bold text-slate-800 text-xs">{caseItem.customer.phone}</span>
-                          </div>
-                        </div>
-                        <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center space-x-2">
-                          <Mail className="w-4 h-4 text-indigo-600 shrink-0" />
-                          <div className="truncate">
-                            <span className="block text-[10px] uppercase font-bold text-slate-400">Email Address:</span>
-                            <span className="font-mono font-bold text-slate-800 text-xs">{caseItem.customer.email}</span>
-                          </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
+                      <div className="flex items-center space-x-2.5">
+                        <Smartphone className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Phone (WhatsApp / SMS):</span>
+                          <span className="font-mono font-bold text-slate-800">{caseItem.customer.phone}</span>
                         </div>
                       </div>
-                      <div className="bg-blue-50/80 border border-blue-200/70 rounded-xl px-3 py-2 text-[11px] text-blue-800 leading-relaxed">
-                        <span className="font-bold">Sandbox Note:</span> Phone <code className="font-mono font-bold bg-white px-1 py-0.5 rounded text-blue-900">{caseItem.customer.phone}</code> is synthetic test data. To send to your real WhatsApp without error, click <strong className="underline cursor-pointer" onClick={() => setRecipientMode('custom')}>"Test My Own Contact"</strong> above.
+                      <div className="flex items-center space-x-2.5">
+                        <Mail className="w-4 h-4 text-indigo-600 shrink-0" />
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-slate-400">Email Address:</span>
+                          <span className="font-mono font-bold text-slate-800">{caseItem.customer.email}</span>
+                        </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-2 pt-1">
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-2">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1">Your Mobile / WhatsApp Number:</label>
@@ -765,105 +932,241 @@ export const CaseDetailModal: React.FC<CaseDetailModalProps> = ({
                   )}
                 </div>
 
-                {/* Message Body Preview */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between text-xs text-slate-600">
-                    <span className="font-bold text-slate-700">Synthesized Contextual Message:</span>
+                {/* STEP 4: Live Message Preview */}
+                <div className="space-y-2.5 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center font-bold">4</span>
+                      <span>Formatted {outreachChannel === 'email' ? 'Email' : outreachChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} Preview</span>
+                    </span>
                     <button
+                      type="button"
                       onClick={() => copyToClipboard(currentMessageBody)}
-                      className="inline-flex items-center space-x-1 text-slate-500 hover:text-slate-800 text-xs font-semibold"
+                      className="inline-flex items-center space-x-1 text-slate-500 hover:text-slate-800 text-xs font-semibold cursor-pointer"
                     >
                       {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                       <span>{copiedLink ? 'Copied' : 'Copy Text'}</span>
                     </button>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-slate-900 text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed border border-slate-800 shadow-inner">
-                    {currentMessageBody}
-                  </div>
-
-                  {/* Contextual Action Bar based on chosen Target Channel */}
-                  <div className="pt-2 flex flex-wrap items-center gap-2.5">
-                    {outreachChannel === 'whatsapp' && (
-                      <a
-                        href={whatsappUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-200 transition-colors"
-                      >
-                        <MessageSquare className="w-4 h-4 mr-1.5" />
-                        <span>Send via WhatsApp (+{cleanPhoneDigits})</span>
-                        <ExternalLink className="w-3 h-3 ml-1.5 opacity-80" />
-                      </a>
-                    )}
-
-                    {outreachChannel === 'email' && (
-                      <a
-                        href={mailtoUrl}
-                        className="inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200 transition-colors"
-                      >
-                        <Mail className="w-4 h-4 mr-1.5" />
-                        <span>Send via Email Client ({activeTargetEmail})</span>
-                        <ExternalLink className="w-3 h-3 ml-1.5 opacity-80" />
-                      </a>
-                    )}
-
-                    {outreachChannel === 'sms' && (
-                      <button
-                        onClick={() => copyToClipboard(currentMessageBody)}
-                        className="inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-sm shadow-purple-200 transition-colors"
-                      >
-                        <Smartphone className="w-4 h-4 mr-1.5" />
-                        <span>Copy SMS Notice Body</span>
-                      </button>
-                    )}
-
-                    {/* Single unified Test Customer Mandate Checkout Portal button */}
-                    <button
-                      type="button"
-                      id="btn-test-customer-portal"
-                      onClick={() => setIsCustomerPortalOpen(true)}
-                      className="inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors shadow-2xs"
-                      title="Open interactive Razorpay customer checkout portal to test 1-click recovery"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />
-                      <span>Test Customer Payment Portal</span>
-                    </button>
-
-                    {/* Simulated Gateway Dispatch */}
-                    <button
-                      onClick={handleSimulateDispatch}
-                      disabled={isLoadingAction}
-                      className="inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-900 text-white shadow-sm shadow-slate-300 transition-colors disabled:opacity-50"
-                    >
-                      <Send className="w-3.5 h-3.5 mr-1.5" />
-                      <span>Simulate Gateway Webhook</span>
-                    </button>
-                  </div>
-
-                  {/* Dispatch Confirmation Banner & Simulation */}
-                  {dispatchStatus && (
-                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 space-y-2.5 animate-in fade-in">
-                      <div className="flex items-start space-x-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  {/* Channel-Specific Authentic Live Mockups */}
+                  {outreachChannel === 'email' ? (
+                    <div className="rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+                      {/* Email Header */}
+                      <div className="bg-slate-100 p-3.5 border-b border-slate-200 text-xs space-y-1.5 font-sans">
+                        <div className="flex items-center justify-between text-slate-500">
+                          <span className="font-bold text-slate-700">From:</span>
+                          <span className="font-mono text-slate-600">Razorpay Billing & Mandates &lt;billing-notifications@razorpay.com&gt;</span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-500">
+                          <span className="font-bold text-slate-700">To:</span>
+                          <span className="font-mono text-indigo-700 font-semibold">{activeTargetEmail}</span>
+                        </div>
+                        <div className="flex items-start justify-between text-slate-500 pt-1 border-t border-slate-200/60">
+                          <span className="font-bold text-slate-700 shrink-0 mr-2">Subject:</span>
+                          <span className="font-bold text-slate-800 text-left flex-1">{emailSubject}</span>
+                        </div>
+                      </div>
+                      {/* Email Body */}
+                      <div className="p-5 bg-white font-sans text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
+                        {currentMessageBody}
+                      </div>
+                    </div>
+                  ) : outreachChannel === 'whatsapp' ? (
+                    <div className="rounded-2xl border border-emerald-200 bg-[#EFEAE2] p-4 shadow-inner">
+                      <div className="flex items-center space-x-2 pb-2 mb-3 border-b border-slate-300/60 text-xs">
+                        <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-[10px]">
+                          R
+                        </div>
                         <div>
-                          <p className="font-bold text-emerald-950">Outreach Transmission Confirmed</p>
-                          <p className="text-[11px] text-emerald-800 mt-0.5">{dispatchStatus}</p>
+                          <span className="font-bold text-slate-800 flex items-center gap-1">
+                            Razorpay Verified Business <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 inline" />
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-mono">Recipient: +{cleanPhoneDigits}</span>
+                        </div>
+                      </div>
+                      <div className="bg-white p-4 rounded-2xl rounded-tl-xs shadow-sm max-w-xl text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
+                        {currentMessageBody}
+                        <div className="text-right text-[10px] text-slate-400 mt-2 font-mono">
+                          {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ✓✓
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-purple-200 bg-slate-50 p-4 shadow-inner">
+                      <div className="flex items-center space-x-2 pb-2 mb-3 border-b border-slate-200 text-xs">
+                        <div className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-[10px]">
+                          <Smartphone className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                            <span>Mobile Messaging App</span>
+                            <span className="text-[10px] font-mono bg-purple-100 text-purple-700 font-bold px-1.5 py-0.2 rounded">Sender ID: RZP-NOTIFY</span>
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-mono">Recipient: +{cleanPhoneDigits}</span>
+                        </div>
+                      </div>
+                      <div className="bg-purple-600 text-white p-4 rounded-2xl rounded-tr-xs shadow-sm max-w-xl text-xs whitespace-pre-wrap leading-relaxed">
+                        {currentMessageBody}
+                      </div>
+                      <div className="pt-2 mt-2 border-t border-slate-200/80 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                        <span>TRAI DLT Entity ID: 17011591234857</span>
+                        <span>Length: {currentMessageBody.length} chars (Unicode Regional Script)</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 5: Clear, Non-Redundant Dispatch Actions */}
+                  <div className="pt-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      {/* 1. Direct App Dispatch based on Channel */}
+                      {outreachChannel === 'email' && (
+                        <a
+                          href={mailtoUrl}
+                          className="inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200 transition-colors"
+                        >
+                          <Mail className="w-4 h-4 mr-1.5" />
+                          <span>Send via Email Client ({activeTargetEmail})</span>
+                          <ExternalLink className="w-3 h-3 ml-1.5 opacity-80" />
+                        </a>
+                      )}
+
+                      {outreachChannel === 'whatsapp' && (
+                        <a
+                          href={whatsappUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shadow-emerald-200 transition-colors"
+                        >
+                          <MessageSquare className="w-4 h-4 mr-1.5" />
+                          <span>Send via WhatsApp (+{cleanPhoneDigits})</span>
+                          <ExternalLink className="w-3 h-3 ml-1.5 opacity-80" />
+                        </a>
+                      )}
+
+                      {outreachChannel === 'sms' && (
+                        <div className="flex items-center space-x-2">
+                          <a
+                            href={smsUrl}
+                            className="inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-sm shadow-purple-200 transition-colors"
+                          >
+                            <Smartphone className="w-4 h-4 mr-1.5" />
+                            <span>Send via SMS App (+{cleanPhoneDigits})</span>
+                            <ExternalLink className="w-3 h-3 ml-1.5 opacity-80" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(currentMessageBody)}
+                            className="inline-flex items-center px-3 py-2.5 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                            title="Copy SMS text to clipboard"
+                          >
+                            <Copy className="w-3.5 h-3.5 mr-1" />
+                            <span>{copiedLink ? 'Copied!' : 'Copy Text'}</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* 2. Automated Server Gateway Webhook Dispatch */}
+                      <button
+                        type="button"
+                        id="btn-simulate-gateway-webhook"
+                        onClick={handleSimulateDispatch}
+                        disabled={isLoadingAction}
+                        className="inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-sm shadow-slate-300 transition-colors disabled:opacity-50 cursor-pointer"
+                        title="Simulate autonomous server-to-server gateway API dispatch via Razorpay"
+                      >
+                        <Send className="w-3.5 h-3.5 mr-1.5 text-indigo-400" />
+                        <span>Dispatch via Razorpay Gateway (Webhook)</span>
+                      </button>
+
+                      {/* 3. Interactive Customer Payment Portal */}
+                      <button
+                        type="button"
+                        id="btn-test-customer-portal"
+                        onClick={() => setIsCustomerPortalOpen(true)}
+                        className="inline-flex items-center px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors shadow-2xs cursor-pointer"
+                        title="Open interactive Razorpay customer checkout portal to test 1-click recovery"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />
+                        <span>Test Customer Payment Portal</span>
+                      </button>
+                    </div>
+
+                    {/* Channel Quick Switch Hint */}
+                    <p className="text-[11px] text-slate-400 mt-2 flex items-center gap-1.5">
+                      <span>Tip:</span>
+                      {outreachChannel === 'whatsapp' ? (
+                        <span>Want to send via Email instead? <button type="button" onClick={() => setOutreachChannel('email')} className="text-indigo-600 font-bold underline cursor-pointer">Switch to Email</button></span>
+                      ) : (
+                        <span>Want to send via WhatsApp instead? <button type="button" onClick={() => setOutreachChannel('whatsapp')} className="text-emerald-600 font-bold underline cursor-pointer">Switch to WhatsApp</button></span>
+                      )}
+                    </p>
+                  </div>
+
+                  {/* GATEWAY WEBHOOK TRANSMISSION CONSOLE & LIVE SIMULATION */}
+                  {gatewayTransmission && (
+                    <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-200 text-xs space-y-3.5 shadow-lg animate-in fade-in">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+                        <div className="flex items-center space-x-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          <span className="font-bold text-white text-xs uppercase tracking-wider">
+                            Gateway API Transmission Completed (200 OK)
+                          </span>
+                        </div>
+                        <span className="font-mono text-[11px] text-emerald-400 bg-emerald-950/80 border border-emerald-800/80 px-2.5 py-0.5 rounded-md">
+                          Receipt #{gatewayTransmission.receiptId}
+                        </span>
+                      </div>
+
+                      {/* Transmission Metadata Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px] font-mono">
+                        <div className="bg-slate-800/80 p-2.5 rounded-xl">
+                          <span className="text-slate-400 block text-[9.5px] uppercase font-sans font-bold">Gateway Engine:</span>
+                          <span className="text-slate-100 font-semibold">{gatewayTransmission.gatewayProvider}</span>
+                        </div>
+                        <div className="bg-slate-800/80 p-2.5 rounded-xl">
+                          <span className="text-slate-400 block text-[9.5px] uppercase font-sans font-bold">API Route:</span>
+                          <span className="text-indigo-300 truncate block">{gatewayTransmission.endpoint}</span>
+                        </div>
+                        <div className="bg-slate-800/80 p-2.5 rounded-xl">
+                          <span className="text-slate-400 block text-[9.5px] uppercase font-sans font-bold">Recipient:</span>
+                          <span className="text-emerald-300 font-semibold">{gatewayTransmission.destination}</span>
                         </div>
                       </div>
 
-                      {caseItem.status !== 'RECOVERED' && (
-                        <div className="pt-2 border-t border-emerald-200/60 flex items-center justify-between gap-3">
-                          <span className="text-[11px] text-emerald-800 font-medium">
-                            Test customer response: Customer taps link and confirms card renewal?
-                          </span>
+                      {/* Webhook JSON Payload Preview */}
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80 font-mono text-[10.5px] overflow-x-auto text-slate-300">
+                        <div className="text-[9.5px] text-slate-500 mb-1 flex items-center gap-1 font-sans uppercase font-bold">
+                          <Code2 className="w-3 h-3" />
+                          <span>Delivered Webhook Payload</span>
+                        </div>
+                        <pre className="text-emerald-400">{JSON.stringify(gatewayTransmission.payload, null, 2)}</pre>
+                      </div>
+
+                      {/* Actionable Recovery Trigger right from the Webhook! */}
+                      {caseItem.status !== 'RECOVERED' ? (
+                        <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-600/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div>
+                            <p className="font-bold text-emerald-200 text-xs flex items-center gap-1.5">
+                              <span>🚀 Customer Received Notification</span>
+                            </p>
+                            <p className="text-[11px] text-emerald-400 mt-0.5">
+                              Simulate customer clicking the link on their device and completing payment of ₹{caseItem.customer.amountINR.toLocaleString('en-IN')}:
+                            </p>
+                          </div>
                           <button
+                            type="button"
                             onClick={() => handleAction('SIMULATE_CUSTOMER_PAY')}
                             disabled={isLoadingAction}
-                            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-[11px] shadow-xs transition-colors shrink-0"
+                            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs shadow-md transition-all cursor-pointer shrink-0"
                           >
-                            Simulate Customer 1-Click Pay
+                            Simulate Customer Pays Now
                           </button>
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-xl bg-emerald-900/30 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <span>Subscription successfully recovered! Verified payment recorded in audit ledger.</span>
                         </div>
                       )}
                     </div>
