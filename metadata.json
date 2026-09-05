@@ -1,0 +1,6 @@
+{
+  "name": "Razorpay AI Revenue Recovery Agent",
+  "description": "Autonomous failed-subscription revenue recovery agent for Razorpay with context-adjusted diagnosis, 4-stage bounded execution, Visa/Mastercard network compliance ceilings, and held-out audit ledger.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
